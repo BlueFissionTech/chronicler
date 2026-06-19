@@ -9,6 +9,9 @@ The first scaffold focuses on:
 - GraphQL field and selection helpers.
 - Traceable storage packets with source, provenance, confidence, visibility,
   read-only authority, and diagnostics metadata.
+- Artifact references, retrieval metadata, asset inventories, and generic
+  resource references for storage-backed media, documents, graph links, and
+  generated outputs.
 - Kafka-style message envelopes and offset tracking.
 - Neo4j-style graph node, edge, path, and traversal objects.
 - Advanced data structures used around storage adapters, including Bloom
