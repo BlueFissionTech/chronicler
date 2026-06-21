@@ -6,6 +6,7 @@ namespace BlueFission\Chronicler\Storage\Structures;
 
 use BlueFission\DataTypes;
 use BlueFission\DevElation as Dev;
+use BlueFission\Num;
 use BlueFission\Obj;
 
 final class SkipList extends Obj
@@ -31,14 +32,14 @@ final class SkipList extends Obj
     {
         parent::__construct();
 
-        $this->max_level = max(1, $maxLevel);
-        $this->probability = min(0.99, max(0.01, $probability));
+        $this->max_level = (int)Num::max(1, $maxLevel);
+        $this->probability = Num::min(0.99, Num::max(0.01, $probability));
         $this->head = new SkipListNode('', null, (int)$this->max_level);
     }
 
     public function insert(string $key, mixed $value): self
     {
-        $update = array_fill(0, (int)$this->max_level + 1, $this->head);
+        $update = $this->nodeWindow($this->head);
         $current = $this->head;
 
         for ($i = $this->level; $i >= 0; $i--) {
@@ -95,7 +96,7 @@ final class SkipList extends Obj
 
     public function delete(string $key): bool
     {
-        $update = array_fill(0, (int)$this->max_level + 1, $this->head);
+        $update = $this->nodeWindow($this->head);
         $current = $this->head;
 
         for ($i = $this->level; $i >= 0; $i--) {
@@ -121,7 +122,7 @@ final class SkipList extends Obj
             $this->level--;
         }
 
-        $this->count = max(0, (int)$this->count - 1);
+        $this->count = (int)Num::max(0, (int)$this->count - 1);
 
         return true;
     }
@@ -153,10 +154,21 @@ final class SkipList extends Obj
     private function randomLevel(): int
     {
         $level = 0;
-        while (mt_rand() / mt_getrandmax() < (float)$this->probability && $level < (int)$this->max_level) {
+        while (Num::rand(PHP_INT_MAX, 0) / PHP_INT_MAX < (float)$this->probability && $level < (int)$this->max_level) {
             $level++;
         }
 
         return $level;
+    }
+
+    /** @return array<int, SkipListNode> */
+    private function nodeWindow(SkipListNode $node): array
+    {
+        $nodes = [];
+        for ($level = 0; $level <= (int)$this->max_level; $level++) {
+            $nodes[$level] = $node;
+        }
+
+        return $nodes;
     }
 }

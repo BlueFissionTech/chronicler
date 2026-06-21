@@ -14,6 +14,9 @@ final class SkipListNode
         public mixed $value,
         int $level
     ) {
-        $this->forward = array_fill(0, $level + 1, null);
+        $this->forward = [];
+        for ($index = 0; $index <= $level; $index++) {
+            $this->forward[$index] = null;
+        }
     }
 }

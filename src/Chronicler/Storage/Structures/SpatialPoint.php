@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Structures;
 
 use BlueFission\DataTypes;
+use BlueFission\Num;
 use BlueFission\Obj;
 use InvalidArgumentException;
 
@@ -48,7 +49,7 @@ final class SpatialPoint extends Obj
         $deltaLon = deg2rad((float)$point->longitude - (float)$this->longitude);
 
         $a = sin($deltaLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($deltaLon / 2) ** 2;
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $c = 2 * atan2(Num::sqrt($a), Num::sqrt(1 - $a));
 
         return $earthRadius * $c;
     }

@@ -7,8 +7,8 @@ namespace BlueFission\Chronicler\Data;
 use BlueFission\Arr;
 use BlueFission\DataTypes;
 use BlueFission\DevElation as Dev;
+use BlueFission\Num;
 use BlueFission\Obj;
-use BlueFission\Obj as DynamicObject;
 
 final class StoragePacket extends Obj
 {
@@ -61,7 +61,7 @@ final class StoragePacket extends Obj
         $this->payload($payload);
         $this->source($source);
         $this->provenance($provenance);
-        $this->confidence = max(0.0, min(1.0, $confidence));
+        $this->confidence = Num::max(0.0, Num::min(1.0, $confidence));
         $this->visibility = $visibility;
         $this->authority($authority);
         $this->readonly();
@@ -96,7 +96,7 @@ final class StoragePacket extends Obj
         if ($payload !== null) {
             $payload = Dev::apply(null, $payload);
             if (!Arr::is($payload)) {
-                $object = $payload instanceof DynamicObject ? $payload : (new DynamicObject())->assign($payload);
+                $object = $payload instanceof Obj ? $payload : (new Obj())->assign($payload);
                 $payload = $object->toArray();
             }
             $this->payload = Arr::toArray($payload);

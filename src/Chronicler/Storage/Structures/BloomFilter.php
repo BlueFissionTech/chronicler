@@ -6,6 +6,7 @@ namespace BlueFission\Chronicler\Storage\Structures;
 
 use BlueFission\Arr;
 use BlueFission\DataTypes;
+use BlueFission\Num;
 use BlueFission\Obj;
 
 final class BloomFilter extends Obj
@@ -28,9 +29,9 @@ final class BloomFilter extends Obj
     {
         parent::__construct();
 
-        $this->size = max(1, $size);
-        $this->hashes = max(1, $hashes);
-        $this->bits = array_fill(0, (int)$this->size, 0);
+        $this->size = (int)Num::max(1, $size);
+        $this->hashes = (int)Num::max(1, $hashes);
+        $this->bits = $this->fillBits((int)$this->size);
     }
 
     public function add(string $item): self
@@ -71,5 +72,16 @@ final class BloomFilter extends Obj
     public function bits(): array
     {
         return Arr::toArray($this->bits);
+    }
+
+    /** @return array<int, int> */
+    private function fillBits(int $size): array
+    {
+        $bits = [];
+        for ($index = 0; $index < $size; $index++) {
+            $bits[$index] = 0;
+        }
+
+        return $bits;
     }
 }
