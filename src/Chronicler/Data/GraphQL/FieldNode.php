@@ -7,6 +7,7 @@ namespace BlueFission\Chronicler\Data\GraphQL;
 use BlueFission\Arr;
 use BlueFission\DataTypes;
 use BlueFission\Flag;
+use BlueFission\Net\HTTP;
 use BlueFission\Obj;
 use BlueFission\Str;
 use InvalidArgumentException;
@@ -163,7 +164,7 @@ final class FieldNode extends Obj
     private function formatValue(mixed $value): string
     {
         if (Str::is($value)) {
-            return json_encode($value, JSON_THROW_ON_ERROR);
+            return HTTP::jsonEncode($value);
         }
 
         if (Flag::isValid($value)) {
