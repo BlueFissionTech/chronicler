@@ -6,6 +6,7 @@ namespace BlueFission\Chronicler\Storage\Event;
 
 use BlueFission\Arr;
 use BlueFission\DataTypes;
+use BlueFission\Num;
 use BlueFission\Obj;
 
 final class OffsetTracker extends Obj
@@ -44,7 +45,7 @@ final class OffsetTracker extends Obj
             return null;
         }
 
-        return max(0, $latestOffset - $offset);
+        return (int)Num::max(0, $latestOffset - $offset);
     }
 
     public function offsets(): array

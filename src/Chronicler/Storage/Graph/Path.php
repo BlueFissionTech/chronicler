@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Graph;
 
 use BlueFission\Arr;
+use BlueFission\Collections\Collection;
 use BlueFission\Data\Graph\Node as BaseNode;
 
 final class Path extends Graph
@@ -57,8 +58,12 @@ final class Path extends Graph
     public function toArray(): array
     {
         return [
-            'nodes' => array_map(static fn (Node $node): array => $node->toArray(), $this->nodes()),
-            'edges' => array_map(static fn (Edge $edge): array => $edge->toArray(), $this->edges()),
+            'nodes' => (new Collection($this->nodes()))
+                ->map(static fn (Node $node): array => $node->toArray())
+                ->toArray(),
+            'edges' => (new Collection($this->edges()))
+                ->map(static fn (Edge $edge): array => $edge->toArray())
+                ->toArray(),
         ];
     }
 }

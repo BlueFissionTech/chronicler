@@ -6,6 +6,7 @@ namespace BlueFission\Chronicler\Data\GraphQL;
 
 use BlueFission\Arr;
 use BlueFission\DataTypes;
+use BlueFission\Flag;
 use BlueFission\Obj;
 use BlueFission\Str;
 use InvalidArgumentException;
@@ -165,8 +166,8 @@ final class FieldNode extends Obj
             return json_encode($value, JSON_THROW_ON_ERROR);
         }
 
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
+        if (Flag::isValid($value)) {
+            return (string)Flag::make($value);
         }
 
         if ($value === null) {
