@@ -21,6 +21,11 @@ actual network drivers should remain opt-in adapters.
 - As a storage integrator, I can emit a deterministic packet that preserves
   payload, source ownership, provenance, confidence, visibility, authority, and
   diagnostics metadata without granting write authority to consumers.
+- As an artifact producer, I can register media, documents, datasets, and
+  generated outputs with retrieval metadata and stable storage references.
+- As a storage consumer, I can follow graph, document, artifact, and event-offset
+  references without requiring a service-specific client in the baseline
+  package.
 - As a stateful stream processor, I can track committed offsets by topic and
   partition without depending on Kafka at test time.
 - As a graph data consumer, I can represent nodes, relationships, paths, and
@@ -41,6 +46,8 @@ actual network drivers should remain opt-in adapters.
   dispatching, and connection inheritance where appropriate.
 - Storage packets expose traceability diagnostics when source, provenance, or
   authority metadata is incomplete.
+- Artifact contracts expose stable references, retrieval metadata, asset
+  inventories, and generic resource links.
 - Optional service integrations remain adapter-level extensions over the
   service-free objects introduced here.
 

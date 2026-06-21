@@ -34,6 +34,10 @@ planning, or model-provider semantics.
   classes and layer database mapping helpers over them. `Graph` also uses
   DevElation prototype domain behavior for member/domain context instead of
   carrying a separate local family registry.
+- `Artifact` for artifact references, retrieval metadata, and asset inventory
+  objects. These classes describe storage identity and retrieval intent without
+  opening object-store, filesystem, or HTTP clients.
+- `Reference` for generic graph, document, artifact, and event-offset links.
 - `Structures` for Bloom filters, skip lists, spatial points, and similar
   storage-adjacent structures.
 
@@ -54,5 +58,7 @@ service sockets.
   requests to external services.
 - Use `StoragePacket` when data leaves a storage adapter boundary and needs
   provenance, authority, or diagnostic context.
+- Use artifact and resource references for stable storage links before binding
+  to a concrete filesystem, object store, document service, or graph driver.
 - Keep service-backed tests opt-in and document required environment variables
   in `tests.md`.
