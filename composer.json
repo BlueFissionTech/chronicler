@@ -1,0 +1,40 @@
+{
+  "name": "bluefission/chronicler",
+  "description": "DevElation-oriented storage objects, connectors, and query helpers for Kafka, Neo4j, GraphQL, and related data systems.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.2",
+    "ext-json": "*",
+    "bluefission/develation": "dev-master"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "BlueFission\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "BlueFission\\Chronicler\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "vendor/bin/phpunit --do-not-cache-result"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/bluefissiontech/develation.git"
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
+  }
+}
