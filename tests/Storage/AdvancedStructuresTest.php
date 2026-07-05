@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Tests\Storage;
 
 use BlueFission\Chronicler\Storage\Structures\BloomFilter;
+use BlueFission\Chronicler\Storage\Structures\PriorityQueue;
 use BlueFission\Chronicler\Storage\Structures\SkipList;
 use BlueFission\Chronicler\Storage\Structures\SpatialPoint;
+use BlueFission\Chronicler\Storage\Structures\WeightedCollection;
 use PHPUnit\Framework\TestCase;
 
 final class AdvancedStructuresTest extends TestCase
@@ -38,5 +40,39 @@ final class AdvancedStructuresTest extends TestCase
 
         $this->assertSame('Point', $a->toGeoJson()['type']);
         $this->assertGreaterThan(100, $a->distanceTo($b));
+    }
+
+    public function testPriorityQueueOrdersByPriorityAndStableSequence(): void
+    {
+        $queue = new PriorityQueue();
+        $queue
+            ->insert('low', 1)
+            ->insert('high', 10)
+            ->insert('also-high', 10);
+
+        $this->assertSame('high', $queue->peek());
+        $this->assertSame(3, $queue->count());
+        $this->assertSame('high', $queue->extract());
+        $this->assertSame('also-high', $queue->extract());
+        $this->assertSame('low', $queue->extract());
+        $this->assertNull($queue->extract());
+    }
+
+    public function testWeightedCollectionRanksAndReinforcesItems(): void
+    {
+        $collection = new WeightedCollection();
+        $collection
+            ->add('alpha', 'a', 2)
+            ->add('beta', 'b', 1);
+
+        $this->assertSame('alpha', $collection->get('a'));
+        $this->assertSame(3, $collection->weight('a'));
+
+        $collection->weight('b', 5);
+
+        $this->assertSame('beta', $collection->values()[0]);
+        $this->assertSame(2, $collection->stats()['count']);
+        $this->assertTrue($collection->remove('a'));
+        $this->assertFalse($collection->has('a'));
     }
 }

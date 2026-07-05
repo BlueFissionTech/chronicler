@@ -38,8 +38,8 @@ planning, or model-provider semantics.
   objects. These classes describe storage identity and retrieval intent without
   opening object-store, filesystem, or HTTP clients.
 - `Reference` for generic graph, document, artifact, and event-offset links.
-- `Structures` for Bloom filters, skip lists, spatial points, and similar
-  storage-adjacent structures.
+- `Structures` for Bloom filters, skip lists, priority queues, weighted
+  collections, spatial points, and similar storage-adjacent structures.
 
 ### Connections
 
