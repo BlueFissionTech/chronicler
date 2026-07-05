@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Graph;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
 use BlueFission\Obj;
 
 final class Traversal extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'start' => null,
         'visited' => [],
@@ -27,7 +30,7 @@ final class Traversal extends Obj
         parent::__construct();
 
         $this->path = new Path();
-        if ($start) {
+        if ($start instanceof Node) {
             $this->start($start);
         }
     }
@@ -52,9 +55,7 @@ final class Traversal extends Obj
 
     public function visit(Node $node): self
     {
-        $visited = $this->visited();
-        $visited[$node->id] = true;
-        $this->visited = $visited;
+        $this->visited = $this->assignArrayValue($this->visited(), $node->id, true);
 
         return $this;
     }
@@ -73,6 +74,6 @@ final class Traversal extends Obj
 
     public function visited(): array
     {
-        return Arr::toArray($this->visited);
+        return $this->valueArray($this->visited);
     }
 }

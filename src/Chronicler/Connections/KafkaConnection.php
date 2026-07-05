@@ -6,12 +6,14 @@ namespace BlueFission\Chronicler\Connections;
 
 use BlueFission\Chronicler\Storage\Event\MessageEnvelope;
 use BlueFission\Chronicler\Storage\QueryBuilder;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class KafkaConnection extends StorageConnection
 {
     public function __construct(?ConnectionProfile $profile = null, array $config = [])
     {
-        parent::__construct($profile ?? new ConnectionProfile('kafka'), $config);
+        parent::__construct(Val::isNotNull($profile) ? $profile : new ConnectionProfile('kafka'), $config);
         $this->profile()->driver = 'kafka';
     }
 
@@ -23,11 +25,11 @@ final class KafkaConnection extends StorageConnection
 
     public function consume(string $topic, ?string $group = null, ?int $partition = null): QueryBuilder
     {
-        $query = new QueryBuilder('kafka', 'consume', $topic);
-        if ($group !== null) {
-            $query->parameter('group', $group);
+        $query = new QueryBuilder('kafka', 'consume', Str::trim($topic));
+        if (Str::is($group)) {
+            $query->parameter('group', Str::trim($group));
         }
-        if ($partition !== null) {
+        if (Val::isNotNull($partition)) {
             $query->parameter('partition', $partition);
         }
 

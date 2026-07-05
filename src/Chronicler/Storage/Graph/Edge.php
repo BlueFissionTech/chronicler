@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Graph;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class Edge extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'id' => '',
         'type' => '',
@@ -35,21 +39,21 @@ final class Edge extends Obj
     {
         parent::__construct();
 
-        $this->id = $id;
-        $this->type = $type;
-        $this->from = $from instanceof Node ? $from->id : $from;
-        $this->to = $to instanceof Node ? $to->id : $to;
+        $this->id = Str::trim($id);
+        $this->type = Str::trim($type);
+        $this->from = $from instanceof Node ? $from->id : Str::trim($from);
+        $this->to = $to instanceof Node ? $to->id : Str::trim($to);
         $this->directed = $directed;
         $this->properties($properties);
     }
 
     public function properties(?array $properties = null): array
     {
-        if ($properties !== null) {
-            $this->properties = Arr::toArray(Dev::apply(null, $properties));
+        if (Val::isNotNull($properties)) {
+            $this->properties = $this->valueArray($properties);
         }
 
-        return Arr::toArray($this->properties);
+        return $this->valueArray($this->properties);
     }
 
     public function connects(string|Node $from, string|Node $to): bool
@@ -57,11 +61,12 @@ final class Edge extends Obj
         $from = $from instanceof Node ? $from->id : $from;
         $to = $to instanceof Node ? $to->id : $to;
 
-        if ($this->directed) {
-            return $this->from === $from && $this->to === $to;
+        if ((bool)$this->directed) {
+            return $this->matchesEndpoints((string)$from, (string)$to);
         }
 
-        return ($this->from === $from && $this->to === $to) || ($this->from === $to && $this->to === $from);
+        return $this->matchesEndpoints((string)$from, (string)$to)
+            || $this->matchesEndpoints((string)$to, (string)$from);
     }
 
     public function toArray(): array
@@ -74,5 +79,11 @@ final class Edge extends Obj
             'directed' => $this->directed,
             'properties' => $this->properties(),
         ];
+    }
+
+    private function matchesEndpoints(string $from, string $to): bool
+    {
+        return Str::make((string)$this->from)->match($from)
+            && Str::make((string)$this->to)->match($to);
     }
 }

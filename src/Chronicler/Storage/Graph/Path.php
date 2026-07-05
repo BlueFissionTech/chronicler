@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Graph;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\Collections\Collection;
 use BlueFission\Data\Graph\Node as BaseNode;
 
 final class Path extends Graph
 {
+    use DevElationValues;
+
     /** @var array<int, Node> */
     private array $routeNodes = [];
 
@@ -26,14 +29,14 @@ final class Path extends Graph
         parent::addNode($node);
 
         if ($node instanceof Node) {
-            $this->routeNodes[] = $node;
+            $this->routeNodes = $this->appendArrayValue($this->routeNodes, $node);
         }
     }
 
     public function addEdge(Edge $edge): self
     {
         $this->connectEdge($edge);
-        $this->routeEdges[] = $edge;
+        $this->routeEdges = $this->appendArrayValue($this->routeEdges, $edge);
 
         return $this;
     }
@@ -52,7 +55,7 @@ final class Path extends Graph
 
     public function length(): int
     {
-        return Arr::make($this->edges())->count();
+        return Arr::count($this->edges());
     }
 
     public function toArray(): array

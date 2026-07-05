@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace BlueFission\Chronicler\Storage\Structures;
 
+use BlueFission\Arr;
 use BlueFission\DataTypes;
 use BlueFission\Num;
 use BlueFission\Obj;
+use BlueFission\Val;
 use InvalidArgumentException;
 
 final class SpatialPoint extends Obj
@@ -34,7 +36,7 @@ final class SpatialPoint extends Obj
         $this->assertRange($latitude, $longitude);
         $this->latitude = $latitude;
         $this->longitude = $longitude;
-        if ($altitude !== null) {
+        if (Val::isNotNull($altitude)) {
             $this->altitude = $altitude;
         }
         $this->srid = $srid;
@@ -43,27 +45,30 @@ final class SpatialPoint extends Obj
     public function distanceTo(self $point): float
     {
         $earthRadius = 6371000.0;
-        $lat1 = deg2rad((float)$this->latitude);
-        $lat2 = deg2rad((float)$point->latitude);
-        $deltaLat = deg2rad((float)$point->latitude - (float)$this->latitude);
-        $deltaLon = deg2rad((float)$point->longitude - (float)$this->longitude);
+        $lat1 = Num::deg2rad((float)$this->latitude);
+        $lat2 = Num::deg2rad((float)$point->latitude);
+        $deltaLat = Num::deg2rad((float)$point->latitude - (float)$this->latitude);
+        $deltaLon = Num::deg2rad((float)$point->longitude - (float)$this->longitude);
 
-        $a = sin($deltaLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($deltaLon / 2) ** 2;
-        $c = 2 * atan2(Num::sqrt($a), Num::sqrt(1 - $a));
+        $deltaLatSin = Num::make($deltaLat)->divide(2)->sin()->val();
+        $deltaLonSin = Num::make($deltaLon)->divide(2)->sin()->val();
+        $a = Num::make($deltaLatSin)->pow(2)->val()
+            + Num::cos($lat1) * Num::cos($lat2) * Num::make($deltaLonSin)->pow(2)->val();
+        $c = Num::make(Num::sqrt($a))->atan2(Num::sqrt(1 - $a))->multiply(2)->val();
 
         return $earthRadius * $c;
     }
 
     public function toGeoJson(): array
     {
-        $coordinates = [(float)$this->longitude, (float)$this->latitude];
-        if ($this->altitude !== null) {
-            $coordinates[] = (float)$this->altitude;
+        $coordinates = Arr::make([(float)$this->longitude, (float)$this->latitude]);
+        if (Val::isNotNull($this->altitude)) {
+            $coordinates->push((float)$this->altitude);
         }
 
         return [
             'type' => 'Point',
-            'coordinates' => $coordinates,
+            'coordinates' => $coordinates->val(),
             'srid' => (int)$this->srid,
         ];
     }
@@ -73,7 +78,7 @@ final class SpatialPoint extends Obj
         return [
             'latitude' => (float)$this->latitude,
             'longitude' => (float)$this->longitude,
-            'altitude' => $this->altitude === null ? null : (float)$this->altitude,
+            'altitude' => Val::isNull($this->altitude) ? null : (float)$this->altitude,
             'srid' => (int)$this->srid,
         ];
     }

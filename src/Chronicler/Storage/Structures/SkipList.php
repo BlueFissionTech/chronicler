@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace BlueFission\Chronicler\Storage\Structures;
 
+use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Num;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class SkipList extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'max_level' => 16,
         'probability' => 0.5,
@@ -39,6 +44,7 @@ final class SkipList extends Obj
 
     public function insert(string $key, mixed $value): self
     {
+        $key = Str::trim($key);
         $update = $this->nodeWindow($this->head);
         $current = $this->head;
 
@@ -50,8 +56,8 @@ final class SkipList extends Obj
         }
 
         $current = $current->forward[0];
-        if ($current !== null && $current->key === $key) {
-            $current->value = Dev::apply(null, $value);
+        if (Val::isNotNull($current) && Str::make($current->key)->match($key)) {
+            $current->value = $this->applyValue($value);
 
             return $this;
         }
@@ -64,19 +70,20 @@ final class SkipList extends Obj
             $this->level = $newLevel;
         }
 
-        $node = new SkipListNode($key, Dev::apply(null, $value), $newLevel);
+        $node = new SkipListNode($key, $this->applyValue($value), $newLevel);
         for ($i = 0; $i <= $newLevel; $i++) {
             $node->forward[$i] = $update[$i]->forward[$i] ?? null;
             $update[$i]->forward[$i] = $node;
         }
 
-        $this->count = (int)$this->count + 1;
+        $this->count = Num::make($this->count)->increment()->int();
 
         return $this;
     }
 
     public function search(string $key): mixed
     {
+        $key = Str::trim($key);
         $current = $this->head;
         for ($i = $this->level; $i >= 0; $i--) {
             while ($current->forward[$i] !== null && $current->forward[$i]->key < $key) {
@@ -86,7 +93,7 @@ final class SkipList extends Obj
 
         $current = $current->forward[0];
 
-        return $current !== null && $current->key === $key ? $current->value : null;
+        return Val::isNotNull($current) && Str::make($current->key)->match($key) ? $current->value : null;
     }
 
     public function has(string $key): bool
@@ -96,6 +103,7 @@ final class SkipList extends Obj
 
     public function delete(string $key): bool
     {
+        $key = Str::trim($key);
         $update = $this->nodeWindow($this->head);
         $current = $this->head;
 
@@ -107,7 +115,7 @@ final class SkipList extends Obj
         }
 
         $current = $current->forward[0];
-        if ($current === null || $current->key !== $key) {
+        if (Val::isNull($current) || !Str::make($current->key)->match($key)) {
             return false;
         }
 
@@ -129,26 +137,26 @@ final class SkipList extends Obj
 
     public function keys(): array
     {
-        $keys = [];
+        $keys = Arr::make();
         $current = $this->head->forward[0];
         while ($current !== null) {
-            $keys[] = $current->key;
+            $keys->push($current->key);
             $current = $current->forward[0];
         }
 
-        return $keys;
+        return $keys->val();
     }
 
     public function toArray(): array
     {
-        $values = [];
+        $values = Arr::make();
         $current = $this->head->forward[0];
         while ($current !== null) {
-            $values[$current->key] = $current->value;
+            $values->set($current->key, $current->value);
             $current = $current->forward[0];
         }
 
-        return $values;
+        return $values->val();
     }
 
     private function randomLevel(): int
@@ -164,11 +172,11 @@ final class SkipList extends Obj
     /** @return array<int, SkipListNode> */
     private function nodeWindow(SkipListNode $node): array
     {
-        $nodes = [];
+        $nodes = Arr::make();
         for ($level = 0; $level <= (int)$this->max_level; $level++) {
-            $nodes[$level] = $node;
+            $nodes->set($level, $node);
         }
 
-        return $nodes;
+        return $nodes->val();
     }
 }

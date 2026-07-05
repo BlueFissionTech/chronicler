@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Event;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
+use BlueFission\Date;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class MessageEnvelope extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'topic' => '',
         'partition_key' => '',
@@ -34,12 +39,12 @@ final class MessageEnvelope extends Obj
     {
         parent::__construct();
 
-        $this->timestamp = gmdate('c');
-        if ($topic !== '') {
-            $this->topic = $topic;
+        $this->timestamp = Date::now()->format('c')->val();
+        if (Str::isNotEmpty($topic)) {
+            $this->topic = Str::trim($topic);
         }
-        if ($partitionKey !== '') {
-            $this->partition_key = $partitionKey;
+        if (Str::isNotEmpty($partitionKey)) {
+            $this->partition_key = Str::trim($partitionKey);
         }
         $this->headers($headers);
         $this->payload($payload);
@@ -48,17 +53,17 @@ final class MessageEnvelope extends Obj
     public static function fromArray(array $message): self
     {
         $envelope = new self(
-            (string)($message['topic'] ?? ''),
-            $message['payload'] ?? null,
-            (string)($message['partition_key'] ?? ''),
-            Arr::toArray($message['headers'] ?? [])
+            (string)Arr::getPath($message, 'topic', ''),
+            Arr::getPath($message, 'payload'),
+            (string)Arr::getPath($message, 'partition_key', ''),
+            Arr::toArray(Arr::getPath($message, 'headers', []))
         );
 
-        if (isset($message['timestamp'])) {
-            $envelope->timestamp = (string)$message['timestamp'];
+        if (Arr::hasKey($message, 'timestamp')) {
+            $envelope->timestamp = (string)Arr::getPath($message, 'timestamp');
         }
-        if (isset($message['partition'])) {
-            $envelope->partition = (int)$message['partition'];
+        if (Arr::hasKey($message, 'partition')) {
+            $envelope->partition = (int)Arr::getPath($message, 'partition');
         }
 
         return $envelope;
@@ -66,17 +71,15 @@ final class MessageEnvelope extends Obj
 
     public function header(string $name, string $value): self
     {
-        $headers = $this->headers();
-        $headers[$name] = $value;
-        $this->headers($headers);
+        $this->headers($this->assignArrayValue($this->headers(), Str::trim($name), Str::trim($value)));
 
         return $this;
     }
 
     public function headers(?array $headers = null): array
     {
-        if ($headers !== null) {
-            $this->headers = Arr::toArray($headers);
+        if (Val::isNotNull($headers)) {
+            $this->headers = $this->valueArray($headers);
         }
 
         return Arr::toArray($this->headers);
@@ -84,8 +87,8 @@ final class MessageEnvelope extends Obj
 
     public function payload(mixed $payload = null): mixed
     {
-        if ($payload !== null) {
-            $this->payload = Dev::apply(null, $payload);
+        if (Val::isNotNull($payload)) {
+            $this->payload = $this->applyValue($payload);
         }
 
         return $this->payload;
@@ -99,7 +102,7 @@ final class MessageEnvelope extends Obj
             'partition' => $this->partition,
             'headers' => $this->headers(),
             'timestamp' => $this->timestamp,
-            'payload' => Dev::apply(null, $this->payload),
+            'payload' => $this->applyValue($this->payload),
         ];
     }
 }

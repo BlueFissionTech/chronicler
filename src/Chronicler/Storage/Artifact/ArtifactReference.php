@@ -6,12 +6,17 @@ namespace BlueFission\Chronicler\Storage\Artifact;
 
 use BlueFission\Arr;
 use BlueFission\Chronicler\Data\StoragePacket;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
+use BlueFission\Num;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class ArtifactReference extends Obj
 {
+    use DevElationValues;
+
     public const TYPE_MEDIA = 'media';
     public const TYPE_DOCUMENT = 'document';
     public const TYPE_DATASET = 'dataset';
@@ -53,13 +58,13 @@ final class ArtifactReference extends Obj
     ) {
         parent::__construct();
 
-        $this->id = $id;
-        $this->uri = $uri;
-        $this->type = $type;
-        $this->media_type = $mediaType;
-        $this->checksum = $checksum;
-        if ($size !== null) {
-            $this->size = $size;
+        $this->id = Str::trim($id);
+        $this->uri = Str::trim($uri);
+        $this->type = Str::trim($type);
+        $this->media_type = Str::trim($mediaType);
+        $this->checksum = Str::trim($checksum);
+        if (Val::isNotNull($size)) {
+            $this->size = (int)Num::max(0, $size);
         }
         $this->retrieval($retrieval);
         $this->meta($meta);
@@ -68,28 +73,28 @@ final class ArtifactReference extends Obj
     public static function fromArray(array $definition): self
     {
         return new self(
-            (string)($definition['id'] ?? ''),
-            (string)($definition['uri'] ?? ''),
-            (string)($definition['type'] ?? self::TYPE_GENERATED),
-            (string)($definition['media_type'] ?? ''),
-            (string)($definition['checksum'] ?? ''),
-            isset($definition['size']) ? (int)$definition['size'] : null,
-            Arr::toArray($definition['retrieval'] ?? []),
-            Arr::toArray($definition['meta'] ?? [])
+            (string)Arr::getPath($definition, 'id', ''),
+            (string)Arr::getPath($definition, 'uri', ''),
+            (string)Arr::getPath($definition, 'type', self::TYPE_GENERATED),
+            (string)Arr::getPath($definition, 'media_type', ''),
+            (string)Arr::getPath($definition, 'checksum', ''),
+            Arr::hasKey($definition, 'size') ? (int)Arr::getPath($definition, 'size') : null,
+            Arr::toArray(Arr::getPath($definition, 'retrieval', [])),
+            Arr::toArray(Arr::getPath($definition, 'meta', []))
         );
     }
 
     public function retrieval(RetrievalMetadata|array|null $retrieval = null): ?RetrievalMetadata
     {
-        if ($retrieval !== null) {
+        if (Val::isNotNull($retrieval)) {
             $this->retrieval = $retrieval instanceof RetrievalMetadata
                 ? $retrieval
                 : new RetrievalMetadata(
-                    (string)($retrieval['method'] ?? ''),
-                    (string)($retrieval['uri'] ?? ''),
-                    Arr::toArray($retrieval['headers'] ?? []),
-                    isset($retrieval['expires_at']) ? (string)$retrieval['expires_at'] : null,
-                    Arr::toArray($retrieval['hints'] ?? [])
+                    (string)Arr::getPath($retrieval, 'method', ''),
+                    (string)Arr::getPath($retrieval, 'uri', ''),
+                    Arr::toArray(Arr::getPath($retrieval, 'headers', [])),
+                    Arr::hasKey($retrieval, 'expires_at') ? (string)Arr::getPath($retrieval, 'expires_at') : null,
+                    Arr::toArray(Arr::getPath($retrieval, 'hints', []))
                 );
         }
 
@@ -98,8 +103,8 @@ final class ArtifactReference extends Obj
 
     public function meta(?array $meta = null): array
     {
-        if ($meta !== null) {
-            $this->meta = Arr::toArray(Dev::apply(null, $meta));
+        if (Val::isNotNull($meta)) {
+            $this->meta = $this->valueArray($meta);
         }
 
         return Arr::toArray($this->meta);
@@ -120,6 +125,8 @@ final class ArtifactReference extends Obj
 
     public function toArray(): array
     {
+        $retrieval = $this->retrieval();
+
         return [
             'id' => $this->id,
             'type' => $this->type,
@@ -127,7 +134,7 @@ final class ArtifactReference extends Obj
             'media_type' => $this->media_type,
             'checksum' => $this->checksum,
             'size' => $this->size,
-            'retrieval' => $this->retrieval()?->toArray() ?? [],
+            'retrieval' => $retrieval instanceof RetrievalMetadata ? $retrieval->toArray() : [],
             'meta' => $this->meta(),
         ];
     }

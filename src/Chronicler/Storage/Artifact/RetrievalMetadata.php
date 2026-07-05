@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Artifact;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class RetrievalMetadata extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'method' => '',
         'uri' => '',
@@ -33,19 +37,19 @@ final class RetrievalMetadata extends Obj
     {
         parent::__construct();
 
-        $this->method = $method;
-        $this->uri = $uri;
+        $this->method = Str::trim($method);
+        $this->uri = Str::trim($uri);
         $this->headers($headers);
-        if ($expiresAt !== null) {
-            $this->expires_at = $expiresAt;
+        if (Val::isNotNull($expiresAt)) {
+            $this->expires_at = Str::trim($expiresAt);
         }
         $this->hints($hints);
     }
 
     public function headers(?array $headers = null): array
     {
-        if ($headers !== null) {
-            $this->headers = Arr::toArray(Dev::apply(null, $headers));
+        if (Val::isNotNull($headers)) {
+            $this->headers = $this->valueArray($headers);
         }
 
         return Arr::toArray($this->headers);
@@ -53,8 +57,8 @@ final class RetrievalMetadata extends Obj
 
     public function hints(?array $hints = null): array
     {
-        if ($hints !== null) {
-            $this->hints = Arr::toArray(Dev::apply(null, $hints));
+        if (Val::isNotNull($hints)) {
+            $this->hints = $this->valueArray($hints);
         }
 
         return Arr::toArray($this->hints);

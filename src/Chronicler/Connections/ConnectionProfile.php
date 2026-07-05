@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Connections;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class ConnectionProfile extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'driver' => '',
         'host' => '',
@@ -34,18 +39,18 @@ final class ConnectionProfile extends Obj
     {
         parent::__construct();
 
-        if ($driver !== '') {
-            $this->driver = $driver;
+        if (Str::isNotEmpty($driver)) {
+            $this->driver = Str::trim($driver);
         }
-        foreach ($config as $key => $value) {
+        Arr::make($config)->each(function (mixed $value, mixed $key): void {
             $this->{$key} = $value;
-        }
+        });
     }
 
     public function options(?array $options = null): array
     {
-        if ($options !== null) {
-            $this->options = Arr::toArray($options);
+        if (Val::isNotNull($options)) {
+            $this->options = $this->valueArray($options);
         }
 
         return Arr::toArray($this->options);
