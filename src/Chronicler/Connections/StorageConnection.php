@@ -12,6 +12,7 @@ use BlueFission\Chronicler\Storage\QueryBuilder;
 use BlueFission\Connections\Connection;
 use BlueFission\DataTypes;
 use BlueFission\IObj;
+use BlueFission\Val;
 
 class StorageConnection extends Connection
 {
@@ -27,12 +28,12 @@ class StorageConnection extends Connection
     {
         parent::__construct($config);
 
-        $this->profile = $profile ?? new ConnectionProfile();
+        $this->profile = Val::isNotNull($profile) ? $profile : new ConnectionProfile();
     }
 
     public function profile(?ConnectionProfile $profile = null): ConnectionProfile
     {
-        if ($profile !== null) {
+        if (Val::isNotNull($profile)) {
             $this->profile = $profile;
         }
 

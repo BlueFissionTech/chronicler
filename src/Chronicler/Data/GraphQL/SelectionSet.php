@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Data\GraphQL;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
 use BlueFission\Obj;
 use BlueFission\Str;
 
 final class SelectionSet extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'fields' => [],
     ];
@@ -25,41 +28,42 @@ final class SelectionSet extends Obj
     {
         parent::__construct();
 
-        foreach ($fields as $field) {
+        Arr::make($fields)->each(function (mixed $field): void {
             $this->add($field);
-        }
+        });
     }
 
     public static function fromArray(array $definition): self
     {
         $selection = new self();
-        foreach ($definition as $key => $value) {
+        Arr::make($definition)->each(function (mixed $value, mixed $key) use ($selection): void {
             if ($value instanceof FieldNode) {
                 $selection->add($value);
-                continue;
+                return;
             }
 
             if (Str::is($key) && Arr::is($value)) {
                 $selection->add(new FieldNode($key, [], self::fromArray($value)));
-                continue;
+                return;
             }
 
             if (Arr::is($value)) {
                 $selection->add(FieldNode::fromArray($value));
-                continue;
+                return;
             }
 
             $selection->add((string)$value);
-        }
+        });
 
         return $selection;
     }
 
     public function add(FieldNode|string $field): self
     {
-        $fields = $this->fields();
-        $fields[] = $field instanceof FieldNode ? $field : new FieldNode($field);
-        $this->fields = $fields;
+        $this->fields = $this->appendArrayValue(
+            $this->fields(),
+            $field instanceof FieldNode ? $field : new FieldNode($field)
+        );
 
         return $this;
     }
@@ -73,27 +77,27 @@ final class SelectionSet extends Obj
     public function toGraphQL(int $indent = 0): string
     {
         $innerIndent = $indent + 2;
-        $lines = ['{'];
-        foreach ($this->fields() as $field) {
+        $lines = Arr::make(['{']);
+        Arr::make($this->fields())->each(function (mixed $field) use ($lines, $innerIndent): void {
             if ($field instanceof FieldNode) {
-                $lines[] = $field->toGraphQL($innerIndent);
+                $lines->push($field->toGraphQL($innerIndent));
             }
-        }
-        $lines[] = Str::make(' ')->repeat($indent)->val() . '}';
+        });
+        $lines->push(Str::make(' ')->repeat($indent)->append('}')->val());
 
-        return implode(PHP_EOL, $lines);
+        return Arr::make($lines->val())->join(PHP_EOL)->val();
     }
 
     /** @return array<int, array<string, mixed>> */
     public function toArray(): array
     {
-        $fields = [];
-        foreach ($this->fields() as $field) {
+        $fields = Arr::make();
+        Arr::make($this->fields())->each(function (mixed $field) use ($fields): void {
             if ($field instanceof FieldNode) {
-                $fields[] = $field->toArray();
+                $fields->push($field->toArray());
             }
-        }
+        });
 
-        return $fields;
+        return $fields->val();
     }
 }

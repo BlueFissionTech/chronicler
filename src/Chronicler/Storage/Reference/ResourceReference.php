@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Reference;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class ResourceReference extends Obj
 {
+    use DevElationValues;
+
     public const KIND_GRAPH_NODE = 'graph_node';
     public const KIND_GRAPH_EDGE = 'graph_edge';
     public const KIND_DOCUMENT = 'document';
@@ -39,26 +43,24 @@ final class ResourceReference extends Obj
     {
         parent::__construct();
 
-        $this->id = $id;
-        $this->kind = $kind;
-        $this->target = $target;
-        $this->relation = $relation;
+        $this->id = Str::trim($id);
+        $this->kind = Str::trim($kind);
+        $this->target = Str::trim($target);
+        $this->relation = Str::trim($relation);
         $this->attributes($attributes);
     }
 
     public function attribute(string $name, mixed $value): self
     {
-        $attributes = $this->attributes();
-        $attributes[$name] = Dev::apply(null, $value);
-        $this->attributes($attributes);
+        $this->attributes($this->assignArrayValue($this->attributes(), Str::trim($name), $value));
 
         return $this;
     }
 
     public function attributes(?array $attributes = null): array
     {
-        if ($attributes !== null) {
-            $this->attributes = Arr::toArray(Dev::apply(null, $attributes));
+        if (Val::isNotNull($attributes)) {
+            $this->attributes = $this->valueArray($attributes);
         }
 
         return Arr::toArray($this->attributes);

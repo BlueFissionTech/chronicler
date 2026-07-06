@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Event;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
 use BlueFission\Num;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class OffsetTracker extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'offsets' => [],
     ];
@@ -23,25 +28,25 @@ final class OffsetTracker extends Obj
 
     public function commit(string $topic, int $partition, int $offset): self
     {
-        $offsets = $this->offsets();
-        $offsets[$topic] = Arr::toArray($offsets[$topic] ?? []);
-        $offsets[$topic][(string)$partition] = $offset;
-        $this->offsets = $offsets;
+        $topic = Str::trim($topic);
+        $topicOffsets = Arr::toArray(Arr::getPath($this->offsets(), $topic, []));
+        $topicOffsets = $this->assignArrayValue($topicOffsets, (string)$partition, $offset);
+        $this->offsets = $this->assignArrayValue($this->offsets(), $topic, $topicOffsets);
 
         return $this;
     }
 
     public function offset(string $topic, int $partition): ?int
     {
-        $offsets = $this->offsets();
+        $offset = Arr::getPath($this->offsets(), [Str::trim($topic), (string)$partition]);
 
-        return isset($offsets[$topic][(string)$partition]) ? (int)$offsets[$topic][(string)$partition] : null;
+        return Val::isNull($offset) ? null : (int)$offset;
     }
 
     public function lag(string $topic, int $partition, int $latestOffset): ?int
     {
         $offset = $this->offset($topic, $partition);
-        if ($offset === null) {
+        if (Val::isNull($offset)) {
             return null;
         }
 

@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Data;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\Data\Data;
 use BlueFission\Data\Schema;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
-use BlueFission\Obj as DynamicObject;
+use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 class StorageObject extends Data
 {
+    use DevElationValues;
+
     protected $_data = [
         'name' => '',
         'schema' => null,
@@ -32,8 +36,8 @@ class StorageObject extends Data
     {
         parent::__construct();
 
-        if ($name !== '') {
-            $this->name = $name;
+        if (Str::isNotEmpty($name)) {
+            $this->name = Str::trim($name);
         }
         $this->payload($payload);
         $this->schema($schema);
@@ -42,7 +46,7 @@ class StorageObject extends Data
 
     public function schema(array|Schema|null $schema = null): ?Schema
     {
-        if ($schema !== null) {
+        if (Val::isNotNull($schema)) {
             $this->schema = $schema instanceof Schema ? $schema : new Schema($schema);
         }
 
@@ -51,13 +55,13 @@ class StorageObject extends Data
 
     public function payload(array|object|null $payload = null): array
     {
-        if ($payload !== null) {
-            $payload = Dev::apply(null, $payload);
+        if (Val::isNotNull($payload)) {
+            $payload = $this->applyValue($payload);
             if (!Arr::is($payload)) {
-                $object = $payload instanceof DynamicObject ? $payload : (new DynamicObject())->assign($payload);
+                $object = $payload instanceof Obj ? $payload : (new Obj())->assign($payload);
                 $payload = $object->toArray();
             }
-            $this->payload = Arr::toArray($payload);
+            $this->payload = $this->valueArray($payload);
         }
 
         return Arr::toArray($this->payload);
@@ -65,8 +69,8 @@ class StorageObject extends Data
 
     public function meta(array|null $meta = null): array
     {
-        if ($meta !== null) {
-            $this->meta = Arr::toArray($meta);
+        if (Val::isNotNull($meta)) {
+            $this->meta = $this->valueArray($meta);
         }
 
         return Arr::toArray($this->meta);
@@ -75,7 +79,7 @@ class StorageObject extends Data
     public function validate(): bool
     {
         $schema = $this->schema();
-        if (!$schema) {
+        if (!$schema instanceof Schema) {
             return true;
         }
 
@@ -85,7 +89,7 @@ class StorageObject extends Data
     public function transform(): array
     {
         $schema = $this->schema();
-        if (!$schema) {
+        if (!$schema instanceof Schema) {
             return $this->payload();
         }
 

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage\Artifact;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
 use BlueFission\Obj;
 
 final class AssetInventory extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'assets' => [],
     ];
@@ -22,9 +25,7 @@ final class AssetInventory extends Obj
 
     public function add(ArtifactReference $reference): self
     {
-        $assets = $this->assets();
-        $assets[$reference->id] = $reference;
-        $this->assets = $assets;
+        $this->assets = $this->assignArrayValue($this->assets(), (string)$reference->id, $reference);
 
         return $this;
     }
@@ -36,21 +37,21 @@ final class AssetInventory extends Obj
 
     public function get(string $id): ?ArtifactReference
     {
-        $asset = $this->assets()[$id] ?? null;
+        $asset = Arr::getPath($this->assets(), $id);
 
         return $asset instanceof ArtifactReference ? $asset : null;
     }
 
     public function byType(string $type): array
     {
-        $matches = [];
-        foreach ($this->assets() as $reference) {
+        $matches = Arr::make();
+        Arr::make($this->assets())->each(function (mixed $reference) use ($type, $matches): void {
             if ($reference instanceof ArtifactReference && $reference->type === $type) {
-                $matches[] = $reference;
+                $matches->push($reference);
             }
-        }
+        });
 
-        return Arr::values($matches);
+        return Arr::values($matches->val());
     }
 
     public function assets(): array
@@ -65,13 +66,13 @@ final class AssetInventory extends Obj
 
     public function toArray(): array
     {
-        $assets = [];
-        foreach ($this->assets() as $id => $reference) {
+        $assets = Arr::make();
+        Arr::make($this->assets())->each(function (mixed $reference, mixed $id) use ($assets): void {
             if ($reference instanceof ArtifactReference) {
-                $assets[$id] = $reference->toArray();
+                $assets->set($id, $reference->toArray());
             }
-        }
+        });
 
-        return $assets;
+        return $assets->val();
     }
 }

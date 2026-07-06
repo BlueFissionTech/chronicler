@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Storage;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
+use BlueFission\Str;
 
 final class QueryBuilder extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'driver' => '',
         'operation' => '',
@@ -33,31 +36,27 @@ final class QueryBuilder extends Obj
     {
         parent::__construct();
 
-        if ($driver !== '') {
-            $this->driver = $driver;
+        if (Str::isNotEmpty($driver)) {
+            $this->driver = Str::trim($driver);
         }
-        if ($operation !== '') {
-            $this->operation = $operation;
+        if (Str::isNotEmpty($operation)) {
+            $this->operation = Str::trim($operation);
         }
-        if ($target !== '') {
-            $this->target = $target;
+        if (Str::isNotEmpty($target)) {
+            $this->target = Str::trim($target);
         }
     }
 
     public function clause(string $name, mixed $value): self
     {
-        $clauses = $this->clauses();
-        $clauses[$name] = Dev::apply(null, $value);
-        $this->clauses = $clauses;
+        $this->clauses = $this->assignArrayValue($this->clauses(), Str::trim($name), $value);
 
         return $this;
     }
 
     public function parameter(string $name, mixed $value): self
     {
-        $parameters = $this->parameters();
-        $parameters[$name] = Dev::apply(null, $value);
-        $this->parameters = $parameters;
+        $this->parameters = $this->assignArrayValue($this->parameters(), Str::trim($name), $value);
 
         return $this;
     }

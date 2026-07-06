@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Data\GraphQL;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\Data\Schema;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Obj;
 use BlueFission\Str;
 use RuntimeException;
 
 final class SchemaRegistry extends Obj
 {
+    use DevElationValues;
+
     protected $_data = [
         'schemas' => [],
         'types' => [],
@@ -28,26 +30,21 @@ final class SchemaRegistry extends Obj
 
     public function registerSchema(string $name, Schema $schema): self
     {
-        $schemas = $this->schemas();
-        $schemas[$name] = $schema;
-        $this->schemas = $schemas;
+        $this->schemas = $this->assignArrayValue($this->schemas(), Str::trim($name), $schema);
 
         return $this;
     }
 
     public function registerType(string $name, array $definition): self
     {
-        $types = $this->types();
-        $types[$name] = Dev::apply(null, $definition);
-        $this->types = $types;
+        $this->types = $this->assignArrayValue($this->types(), Str::trim($name), $definition);
 
         return $this;
     }
 
     public function schema(string $name): ?Schema
     {
-        $schemas = $this->schemas();
-        $schema = $schemas[$name] ?? null;
+        $schema = Arr::getPath($this->schemas(), $name);
 
         return $schema instanceof Schema ? $schema : null;
     }
@@ -56,7 +53,7 @@ final class SchemaRegistry extends Obj
     {
         $types = $this->types();
 
-        return Arr::toArray($types[$name] ?? []);
+        return Arr::toArray(Arr::getPath($types, $name, []));
     }
 
     public function has(string $name): bool
@@ -67,7 +64,7 @@ final class SchemaRegistry extends Obj
     public function validate(string $name, array|object $data): bool
     {
         $schema = $this->schema($name);
-        if (!$schema) {
+        if (!$schema instanceof Schema) {
             throw new RuntimeException('Schema not registered: ' . $name);
         }
 
@@ -78,17 +75,17 @@ final class SchemaRegistry extends Obj
     public function traverse(string $name, string $field = 'fields'): array
     {
         $type = $this->type($name);
-        if (!$type) {
+        if (!Arr::isNotEmpty($type)) {
             return [];
         }
 
-        $fields = Arr::toArray($type[$field] ?? []);
-        $names = [];
-        foreach ($fields as $key => $value) {
-            $names[] = Str::is($key) ? $key : (string)$value;
-        }
+        $fields = Arr::toArray(Arr::getPath($type, $field, []));
+        $names = Arr::make();
+        Arr::make($fields)->each(function (mixed $value, mixed $key) use ($names): void {
+            $names->push(Str::is($key) ? $key : (string)$value);
+        });
 
-        return $names;
+        return $names->val();
     }
 
     /** @return array<string, Schema> */

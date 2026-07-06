@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Data;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Support\DevElationValues;
 use BlueFission\DataTypes;
-use BlueFission\DevElation as Dev;
 use BlueFission\Num;
 use BlueFission\Obj;
+use BlueFission\Str;
+use BlueFission\Val;
 
 final class StoragePacket extends Obj
 {
+    use DevElationValues;
+
     public const TYPE_EVENT = 'event';
     public const TYPE_FEATURE = 'feature';
     public const TYPE_PHENOMENON = 'phenomenon';
@@ -57,12 +61,12 @@ final class StoragePacket extends Obj
     ) {
         parent::__construct();
 
-        $this->type = $type;
+        $this->type = Str::trim($type);
         $this->payload($payload);
         $this->source($source);
         $this->provenance($provenance);
         $this->confidence = Num::max(0.0, Num::min(1.0, $confidence));
-        $this->visibility = $visibility;
+        $this->visibility = Str::trim($visibility);
         $this->authority($authority);
         $this->readonly();
         $this->meta($meta);
@@ -70,22 +74,24 @@ final class StoragePacket extends Obj
 
     public static function fromStorageObject(StorageObject $object, string $type = self::TYPE_EVIDENCE): self
     {
+        $meta = $object->meta();
+
         return new self(
             $type,
             $object->payload(),
-            Arr::toArray($object->meta()['source'] ?? []),
-            Arr::toArray($object->meta()['provenance'] ?? []),
-            (float)($object->meta()['confidence'] ?? 1.0),
-            (string)($object->meta()['visibility'] ?? 'internal'),
-            Arr::toArray($object->meta()['authority'] ?? []),
-            Arr::toArray($object->meta())
+            Arr::toArray(Arr::getPath($meta, 'source', [])),
+            Arr::toArray(Arr::getPath($meta, 'provenance', [])),
+            (float)Arr::getPath($meta, 'confidence', 1.0),
+            (string)Arr::getPath($meta, 'visibility', 'internal'),
+            Arr::toArray(Arr::getPath($meta, 'authority', [])),
+            Arr::toArray($meta)
         );
     }
 
     public function source(?array $source = null): array
     {
-        if ($source !== null) {
-            $this->source = Arr::toArray(Dev::apply(null, $source));
+        if (Val::isNotNull($source)) {
+            $this->source = $this->valueArray($source);
         }
 
         return Arr::toArray($this->source);
@@ -93,13 +99,13 @@ final class StoragePacket extends Obj
 
     public function payload(array|object|null $payload = null): array
     {
-        if ($payload !== null) {
-            $payload = Dev::apply(null, $payload);
+        if (Val::isNotNull($payload)) {
+            $payload = $this->applyValue($payload);
             if (!Arr::is($payload)) {
                 $object = $payload instanceof Obj ? $payload : (new Obj())->assign($payload);
                 $payload = $object->toArray();
             }
-            $this->payload = Arr::toArray($payload);
+            $this->payload = $this->valueArray($payload);
         }
 
         return Arr::toArray($this->payload);
@@ -107,8 +113,8 @@ final class StoragePacket extends Obj
 
     public function provenance(?array $provenance = null): array
     {
-        if ($provenance !== null) {
-            $this->provenance = Arr::toArray(Dev::apply(null, $provenance));
+        if (Val::isNotNull($provenance)) {
+            $this->provenance = $this->valueArray($provenance);
         }
 
         return Arr::toArray($this->provenance);
@@ -116,8 +122,8 @@ final class StoragePacket extends Obj
 
     public function authority(?array $authority = null): array
     {
-        if ($authority !== null) {
-            $this->authority = Arr::toArray(Dev::apply(null, $authority));
+        if (Val::isNotNull($authority)) {
+            $this->authority = $this->valueArray($authority);
         }
 
         return Arr::toArray($this->authority);
@@ -126,7 +132,7 @@ final class StoragePacket extends Obj
     public function readonly(): self
     {
         $authority = $this->authority();
-        $authority['can_write'] = false;
+        $authority = $this->assignArrayValue($authority, 'can_write', false);
         $this->authority($authority);
 
         return $this;
@@ -134,8 +140,8 @@ final class StoragePacket extends Obj
 
     public function meta(?array $meta = null): array
     {
-        if ($meta !== null) {
-            $this->meta = Arr::toArray(Dev::apply(null, $meta));
+        if (Val::isNotNull($meta)) {
+            $this->meta = $this->valueArray($meta);
         }
 
         return Arr::toArray($this->meta);
@@ -143,13 +149,11 @@ final class StoragePacket extends Obj
 
     public function diagnostic(string $code, string $message, string $severity = 'warning'): self
     {
-        $diagnostics = $this->diagnostics();
-        $diagnostics[] = [
+        $this->diagnostics = $this->appendArrayValue($this->diagnostics(), [
             'code' => $code,
             'message' => $message,
             'severity' => $severity,
-        ];
-        $this->diagnostics = $diagnostics;
+        ]);
 
         return $this;
     }
@@ -164,7 +168,7 @@ final class StoragePacket extends Obj
             $this->diagnostic('missing_provenance', 'Packet provenance metadata is not available.');
         }
 
-        if (Arr::make($this->authority())->count() < 2) {
+        if (Arr::count($this->authority()) < 2) {
             $this->diagnostic('missing_authority', 'Packet authority metadata is not available.');
         }
 
