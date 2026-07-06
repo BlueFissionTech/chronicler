@@ -32,8 +32,9 @@ actual network drivers should remain opt-in adapters.
   traversals in native PHP objects before binding them to Neo4j or another graph
   driver.
 - As a storage implementer, I can use baseline data structures such as Bloom
-  filters, skip lists, priority queues, weighted collections, and spatial
-  points around cache checks, indexes, ranking, and GIS queries.
+  filters, skip lists, priority queues, weighted collections, vectors, sets,
+  dictionaries, deques, piles, and spatial points around cache checks, indexes,
+  ranking, ordered access, and GIS queries.
 
 ## Acceptance Criteria
 
@@ -50,8 +51,8 @@ actual network drivers should remain opt-in adapters.
   inventories, and generic resource links.
 - Optional service integrations remain adapter-level extensions over the
   service-free objects introduced here.
-- Reusable structures support general storage and ranking use cases without
-  depending on optional PHP extensions.
+- Reusable structures support general storage, sequence, keyed lookup, stack,
+  queue, and ranking use cases without depending on optional PHP extensions.
 
 ## Non-Goals
 

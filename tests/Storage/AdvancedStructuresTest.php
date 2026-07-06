@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Tests\Storage;
 
 use BlueFission\Chronicler\Storage\Structures\BloomFilter;
+use BlueFission\Chronicler\Storage\Structures\Deque;
+use BlueFission\Chronicler\Storage\Structures\Dictionary;
+use BlueFission\Chronicler\Storage\Structures\Pile;
 use BlueFission\Chronicler\Storage\Structures\PriorityQueue;
+use BlueFission\Chronicler\Storage\Structures\Set;
 use BlueFission\Chronicler\Storage\Structures\SkipList;
 use BlueFission\Chronicler\Storage\Structures\SpatialPoint;
+use BlueFission\Chronicler\Storage\Structures\Vector;
 use BlueFission\Chronicler\Storage\Structures\WeightedCollection;
 use PHPUnit\Framework\TestCase;
 
@@ -74,5 +79,63 @@ final class AdvancedStructuresTest extends TestCase
         $this->assertSame(2, $collection->stats()['count']);
         $this->assertTrue($collection->remove('a'));
         $this->assertFalse($collection->has('a'));
+    }
+
+    public function testVectorSupportsIndexedListOperations(): void
+    {
+        $vector = new Vector(['alpha', 'gamma']);
+        $vector->insert(1, 'beta')->set(2, 'delta')->push('epsilon');
+
+        $this->assertSame(['alpha', 'beta', 'delta', 'epsilon'], $vector->values());
+        $this->assertSame('beta', $vector->get(1));
+        $this->assertTrue($vector->contains('delta'));
+        $this->assertSame('beta', $vector->remove(1));
+        $this->assertSame(['alpha', 'delta', 'epsilon'], $vector->toArray());
+    }
+
+    public function testDequeSupportsBothEnds(): void
+    {
+        $deque = new Deque(['middle']);
+        $deque->pushFront('front')->pushBack('back');
+
+        $this->assertSame('front', $deque->peekFront());
+        $this->assertSame('back', $deque->peekBack());
+        $this->assertSame('front', $deque->popFront());
+        $this->assertSame('back', $deque->popBack());
+        $this->assertSame(['middle'], $deque->values());
+    }
+
+    public function testPileSupportsLastInFirstOutAccess(): void
+    {
+        $pile = new Pile();
+        $pile->push('first')->push('second');
+
+        $this->assertSame('second', $pile->peek());
+        $this->assertSame('second', $pile->pop());
+        $this->assertSame('first', $pile->pop());
+        $this->assertNull($pile->pop());
+    }
+
+    public function testSetKeepsUniqueStrictValues(): void
+    {
+        $set = new Set(['1', '1', 1]);
+        $set->add('2')->add('2');
+
+        $this->assertSame(['1', 1, '2'], $set->values());
+        $this->assertTrue($set->has(1));
+        $this->assertTrue($set->remove('1'));
+        $this->assertSame([1, '2'], $set->values());
+    }
+
+    public function testDictionaryStoresKeyedValues(): void
+    {
+        $dictionary = new Dictionary(['alpha' => 1]);
+        $dictionary->set('beta', 2)->put('gamma', 3);
+
+        $this->assertTrue($dictionary->has('beta'));
+        $this->assertSame(2, $dictionary->get('beta'));
+        $this->assertSame(['alpha', 'beta', 'gamma'], $dictionary->keys());
+        $this->assertTrue($dictionary->remove('alpha'));
+        $this->assertSame(['beta' => 2, 'gamma' => 3], $dictionary->toArray());
     }
 }
