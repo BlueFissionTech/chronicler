@@ -7,7 +7,7 @@ namespace BlueFission\Chronicler\Storage\Structures;
 use BlueFission\Arr;
 use BlueFission\Num;
 
-final class Vector extends ArrayStructure
+final class Vec extends ArrayStructure
 {
     public function __construct(array $items = [])
     {

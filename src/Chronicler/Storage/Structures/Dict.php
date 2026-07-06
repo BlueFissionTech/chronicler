@@ -6,7 +6,7 @@ namespace BlueFission\Chronicler\Storage\Structures;
 
 use BlueFission\Arr;
 
-final class Dictionary extends ArrayStructure
+final class Dict extends ArrayStructure
 {
     public function __construct(array $items = [])
     {

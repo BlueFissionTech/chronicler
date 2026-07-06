@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Tests\Storage;
 
 use BlueFission\Chronicler\Storage\Structures\BloomFilter;
-use BlueFission\Chronicler\Storage\Structures\Deque;
-use BlueFission\Chronicler\Storage\Structures\Dictionary;
+use BlueFission\Chronicler\Storage\Structures\Deq;
+use BlueFission\Chronicler\Storage\Structures\Dict;
 use BlueFission\Chronicler\Storage\Structures\Pile;
 use BlueFission\Chronicler\Storage\Structures\PriorityQueue;
 use BlueFission\Chronicler\Storage\Structures\Set;
 use BlueFission\Chronicler\Storage\Structures\SkipList;
 use BlueFission\Chronicler\Storage\Structures\SpatialPoint;
-use BlueFission\Chronicler\Storage\Structures\Vector;
+use BlueFission\Chronicler\Storage\Structures\Vec;
 use BlueFission\Chronicler\Storage\Structures\WeightedCollection;
 use PHPUnit\Framework\TestCase;
 
@@ -83,26 +83,26 @@ final class AdvancedStructuresTest extends TestCase
 
     public function testVectorSupportsIndexedListOperations(): void
     {
-        $vector = new Vector(['alpha', 'gamma']);
-        $vector->insert(1, 'beta')->set(2, 'delta')->push('epsilon');
+        $vec = new Vec(['alpha', 'gamma']);
+        $vec->insert(1, 'beta')->set(2, 'delta')->push('epsilon');
 
-        $this->assertSame(['alpha', 'beta', 'delta', 'epsilon'], $vector->values());
-        $this->assertSame('beta', $vector->get(1));
-        $this->assertTrue($vector->contains('delta'));
-        $this->assertSame('beta', $vector->remove(1));
-        $this->assertSame(['alpha', 'delta', 'epsilon'], $vector->toArray());
+        $this->assertSame(['alpha', 'beta', 'delta', 'epsilon'], $vec->values());
+        $this->assertSame('beta', $vec->get(1));
+        $this->assertTrue($vec->contains('delta'));
+        $this->assertSame('beta', $vec->remove(1));
+        $this->assertSame(['alpha', 'delta', 'epsilon'], $vec->toArray());
     }
 
     public function testDequeSupportsBothEnds(): void
     {
-        $deque = new Deque(['middle']);
-        $deque->pushFront('front')->pushBack('back');
+        $deq = new Deq(['middle']);
+        $deq->pushFront('front')->pushBack('back');
 
-        $this->assertSame('front', $deque->peekFront());
-        $this->assertSame('back', $deque->peekBack());
-        $this->assertSame('front', $deque->popFront());
-        $this->assertSame('back', $deque->popBack());
-        $this->assertSame(['middle'], $deque->values());
+        $this->assertSame('front', $deq->peekFront());
+        $this->assertSame('back', $deq->peekBack());
+        $this->assertSame('front', $deq->popFront());
+        $this->assertSame('back', $deq->popBack());
+        $this->assertSame(['middle'], $deq->values());
     }
 
     public function testPileSupportsLastInFirstOutAccess(): void
@@ -129,13 +129,13 @@ final class AdvancedStructuresTest extends TestCase
 
     public function testDictionaryStoresKeyedValues(): void
     {
-        $dictionary = new Dictionary(['alpha' => 1]);
-        $dictionary->set('beta', 2)->put('gamma', 3);
+        $dict = new Dict(['alpha' => 1]);
+        $dict->set('beta', 2)->put('gamma', 3);
 
-        $this->assertTrue($dictionary->has('beta'));
-        $this->assertSame(2, $dictionary->get('beta'));
-        $this->assertSame(['alpha', 'beta', 'gamma'], $dictionary->keys());
-        $this->assertTrue($dictionary->remove('alpha'));
-        $this->assertSame(['beta' => 2, 'gamma' => 3], $dictionary->toArray());
+        $this->assertTrue($dict->has('beta'));
+        $this->assertSame(2, $dict->get('beta'));
+        $this->assertSame(['alpha', 'beta', 'gamma'], $dict->keys());
+        $this->assertTrue($dict->remove('alpha'));
+        $this->assertSame(['beta' => 2, 'gamma' => 3], $dict->toArray());
     }
 }

@@ -39,8 +39,8 @@ planning, or model-provider semantics.
   opening object-store, filesystem, or HTTP clients.
 - `Reference` for generic graph, document, artifact, and event-offset links.
 - `Structures` for Bloom filters, skip lists, priority queues, weighted
-  collections, vectors, sets, dictionaries, deques, piles, spatial points, and
-  similar storage-adjacent structures.
+  collections, `Vec`, `Set`, `Dict`, `Deq`, `Pile`, spatial points, and similar
+  storage-adjacent structures.
 
 ### Connections
 

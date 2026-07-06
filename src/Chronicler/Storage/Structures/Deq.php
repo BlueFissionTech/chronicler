@@ -7,7 +7,7 @@ namespace BlueFission\Chronicler\Storage\Structures;
 use BlueFission\Arr;
 use BlueFission\Num;
 
-final class Deque extends ArrayStructure
+final class Deq extends ArrayStructure
 {
     public function __construct(array $items = [])
     {
