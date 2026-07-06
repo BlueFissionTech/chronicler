@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace BlueFission\Chronicler\Storage\Structures;
+namespace BlueFission;
 
 use BlueFission\Arr;
+use BlueFission\Chronicler\Storage\Structures\ArrayStructure;
 
 final class Set extends ArrayStructure
 {

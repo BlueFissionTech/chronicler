@@ -12,7 +12,7 @@ use BlueFission\Num;
 use BlueFission\Obj;
 use BlueFission\Val;
 
-final class PriorityQueue extends Obj
+class PriorityQueue extends Obj
 {
     use DevElationValues;
 

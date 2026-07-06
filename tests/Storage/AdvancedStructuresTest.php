@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace BlueFission\Chronicler\Tests\Storage;
 
 use BlueFission\Chronicler\Storage\Structures\BloomFilter;
-use BlueFission\Chronicler\Storage\Structures\Deq;
-use BlueFission\Chronicler\Storage\Structures\Dict;
-use BlueFission\Chronicler\Storage\Structures\Pile;
-use BlueFission\Chronicler\Storage\Structures\PriorityQueue;
-use BlueFission\Chronicler\Storage\Structures\Set;
 use BlueFission\Chronicler\Storage\Structures\SkipList;
 use BlueFission\Chronicler\Storage\Structures\SpatialPoint;
-use BlueFission\Chronicler\Storage\Structures\Vec;
 use BlueFission\Chronicler\Storage\Structures\WeightedCollection;
+use BlueFission\Deq;
+use BlueFission\Dict;
+use BlueFission\Pile;
+use BlueFission\Pri;
+use BlueFission\Set;
+use BlueFission\Vec;
 use PHPUnit\Framework\TestCase;
 
 final class AdvancedStructuresTest extends TestCase
@@ -49,7 +49,7 @@ final class AdvancedStructuresTest extends TestCase
 
     public function testPriorityQueueOrdersByPriorityAndStableSequence(): void
     {
-        $queue = new PriorityQueue();
+        $queue = new Pri();
         $queue
             ->insert('low', 1)
             ->insert('high', 10)
