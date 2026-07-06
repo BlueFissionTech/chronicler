@@ -33,15 +33,16 @@ actual network drivers should remain opt-in adapters.
   driver.
 - As a storage implementer, I can use baseline data structures such as Bloom
   filters, skip lists, priority queues, weighted collections, root namespace
-  primitives (`Vec`, `Set`, `Dict`, `Deq`, `Pri`, `Pile`), and spatial points
-  around cache checks, indexes, ranking, ordered access, and GIS queries.
+  `IVal` primitives (`Vec`, `Set`, `Dict`, `Deq`, `Pri`, `Pile`), and spatial
+  points around cache checks, indexes, ranking, ordered access, and GIS
+  queries.
 
 ## Acceptance Criteria
 
 - The package requires PHP 8.2 or newer and `bluefission/develation`.
 - Source code lives under `src/Chronicler`, with primitive-style value objects
   allowed at the root `BlueFission` namespace when they intentionally extend
-  the DevElation primitive surface.
+  the DevElation `Val`/`IVal` primitive surface.
 - First-class directories exist for `Data`, `Storage`, and `Connections`.
 - Baseline tests do not require Kafka, Neo4j, databases, Docker, or network
   access.
@@ -55,6 +56,8 @@ actual network drivers should remain opt-in adapters.
   service-free objects introduced here.
 - Reusable structures support general storage, sequence, keyed lookup, stack,
   queue, and ranking use cases without depending on optional PHP extensions.
+- Root data-structure primitives prefer php-ds backing stores when the extension
+  is available and fall back to arrays on clean PHP installations.
 
 ## Non-Goals
 

@@ -4,86 +4,187 @@ declare(strict_types=1);
 
 namespace BlueFission;
 
-use BlueFission\Arr;
-use BlueFission\Chronicler\Storage\Structures\ArrayStructure;
-use BlueFission\Num;
+use ArrayIterator;
+use BlueFission\Behavioral\Behaviors\Event;
+use IteratorAggregate;
+use Traversable;
 
-final class Vec extends ArrayStructure
+/**
+ * Value object wrapper around Ds\Vector with an array fallback.
+ *
+ * @implements IteratorAggregate<int, mixed>
+ */
+class Vec extends Val implements IVal, IteratorAggregate
 {
-    public function __construct(array $items = [])
-    {
-        parent::__construct();
+    protected $_type = DataTypes::GENERIC;
 
-        Arr::make($items)->each(function (mixed $item): void {
-            $this->push($item);
-        });
+    protected $_forceType = false;
+
+    public function __construct($value = null, bool $snapshot = true)
+    {
+        parent::__construct($this->buildStorage($value), $snapshot, false);
     }
 
-    public function push(mixed $value): self
+    public static function make($value = null): IVal
     {
-        $this->mutateItems($this->appendArrayValue($this->items(), $value));
+        return new static($value);
+    }
+
+    public function cast(): IVal
+    {
+        if ($this->supportsDs()) {
+            if (!$this->isDsVector($this->_data)) {
+                $this->_data = $this->buildStorage($this->toArray());
+            }
+
+            return $this;
+        }
+
+        if (!Arr::is($this->_data)) {
+            $this->_data = Arr::toArray($this->_data);
+        }
 
         return $this;
     }
 
-    public function append(mixed $value): self
+    public function _is(): bool
+    {
+        return $this->isDsVector($this->_data) || Arr::is($this->_data);
+    }
+
+    public function add($value): IVal
     {
         return $this->push($value);
     }
 
-    public function insert(int $index, mixed $value): self
+    public function push(mixed $value): IVal
     {
-        $items = Arr::make($this->items())
-            ->splice([$this->applyValue($value)], $this->boundedIndex($index), 0)
-            ->values()
-            ->val();
+        if ($this->isDsVector($this->_data)) {
+            $this->_data->push($value);
+        } else {
+            $data = Arr::make($this->_data);
+            $data->push($value);
+            $this->_data = $data->val();
+        }
 
-        $this->mutateItems($items);
+        $this->trigger(Event::CHANGE);
 
         return $this;
     }
 
-    public function set(int $index, mixed $value): self
+    public function append(mixed $value): IVal
     {
-        $items = Arr::make($this->items());
-        $items->set($index, $this->applyValue($value));
-        $this->mutateItems($items->values()->val());
+        return $this->push($value);
+    }
+
+    public function insert(int $index, mixed $value): IVal
+    {
+        $index = $this->boundedIndex($index);
+
+        if ($this->isDsVector($this->_data)) {
+            $this->_data->insert($index, $value);
+        } else {
+            $items = Arr::make($this->_data)
+                ->splice([$value], $index, 0)
+                ->values()
+                ->val();
+            $this->_data = $items;
+        }
+
+        $this->trigger(Event::CHANGE);
+
+        return $this;
+    }
+
+    public function remove(int $index): IVal
+    {
+        if (!$this->hasIndex($index)) {
+            return $this;
+        }
+
+        if ($this->isDsVector($this->_data)) {
+            $this->_data->remove($index);
+        } else {
+            $items = Arr::make($this->_data);
+            $items->delete($index);
+            $this->_data = $items->values()->val();
+        }
+
+        $this->trigger(Event::CHANGE);
 
         return $this;
     }
 
     public function get(int $index, mixed $default = null): mixed
     {
-        return Arr::getPath($this->items(), $index, $default);
-    }
-
-    public function remove(int $index): mixed
-    {
-        if (!$this->hasIndex($index)) {
-            return null;
+        if ($this->isDsVector($this->_data)) {
+            return $this->hasIndex($index) ? $this->_data->get($index) : $default;
         }
 
-        $value = $this->get($index);
-        $items = Arr::make($this->items());
-        $items->delete($index);
-        $this->mutateItems($items->values()->val());
+        return Arr::getPath($this->_data, $index, $default);
+    }
 
-        return $value;
+    public function set(int $index, mixed $value): IVal
+    {
+        if ($this->isDsVector($this->_data)) {
+            $this->_data->set($index, $value);
+        } else {
+            $this->_data[$index] = $value;
+        }
+
+        $this->trigger(Event::CHANGE);
+
+        return $this;
+    }
+
+    public function clear(): IVal
+    {
+        if ($this->isDsVector($this->_data)) {
+            $this->_data->clear();
+        } else {
+            $this->_data = [];
+        }
+
+        $this->trigger(Event::CHANGE);
+
+        return $this;
+    }
+
+    public function count(): int
+    {
+        if ($this->isDsVector($this->_data)) {
+            return $this->_data->count();
+        }
+
+        return Arr::size($this->_data);
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->count() === 0;
     }
 
     public function hasIndex(int $index): bool
     {
-        return Arr::hasKey($this->items(), $index);
+        if ($this->isDsVector($this->_data)) {
+            return $index >= 0 && $index < $this->_data->count();
+        }
+
+        return Arr::hasKey($this->_data, $index);
     }
 
     public function contains(mixed $value, bool $strict = true): bool
     {
-        return Arr::has($this->items(), $value, $strict);
+        if ($this->isDsVector($this->_data)) {
+            return Arr::has($this->_data->toArray(), $value, $strict);
+        }
+
+        return Arr::has($this->_data, $value, $strict);
     }
 
     public function first(mixed $default = null): mixed
     {
-        return Arr::getPath($this->items(), 0, $default);
+        return $this->get(0, $default);
     }
 
     public function last(mixed $default = null): mixed
@@ -92,7 +193,59 @@ final class Vec extends ArrayStructure
             return $default;
         }
 
-        return Arr::getPath($this->items(), Num::make($this->count())->minus(1)->int(), $default);
+        return $this->get($this->count() - 1, $default);
+    }
+
+    public function values(): array
+    {
+        return $this->toArray();
+    }
+
+    public function toArray(): array
+    {
+        if ($this->isDsVector($this->_data)) {
+            return $this->_data->toArray();
+        }
+
+        return Arr::toArray($this->_data);
+    }
+
+    public function val($value = null): mixed
+    {
+        if (func_num_args() === 0) {
+            return $this->toArray();
+        }
+
+        $this->_data = $this->buildStorage($value);
+        $this->trigger(Event::CHANGE);
+
+        return $this;
+    }
+
+    public function getIterator(): Traversable
+    {
+        return new ArrayIterator($this->toArray());
+    }
+
+    protected function supportsDs(): bool
+    {
+        return class_exists('\Ds\Vector');
+    }
+
+    protected function isDsVector(mixed $value): bool
+    {
+        return $this->supportsDs() && $value instanceof \Ds\Vector;
+    }
+
+    protected function buildStorage(mixed $seed): mixed
+    {
+        $items = Arr::toArray($seed);
+
+        if ($this->supportsDs()) {
+            return new \Ds\Vector($items);
+        }
+
+        return Arr::make($items)->values()->val();
     }
 
     private function boundedIndex(int $index): int

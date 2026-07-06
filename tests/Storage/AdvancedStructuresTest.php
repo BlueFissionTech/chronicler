@@ -10,9 +10,11 @@ use BlueFission\Chronicler\Storage\Structures\SpatialPoint;
 use BlueFission\Chronicler\Storage\Structures\WeightedCollection;
 use BlueFission\Deq;
 use BlueFission\Dict;
+use BlueFission\IVal;
 use BlueFission\Pile;
 use BlueFission\Pri;
 use BlueFission\Set;
+use BlueFission\Val;
 use BlueFission\Vec;
 use PHPUnit\Framework\TestCase;
 
@@ -50,6 +52,11 @@ final class AdvancedStructuresTest extends TestCase
     public function testPriorityQueueOrdersByPriorityAndStableSequence(): void
     {
         $queue = new Pri();
+        $this->assertInstanceOf(IVal::class, $queue);
+        $this->assertInstanceOf(Val::class, $queue);
+        $this->assertInstanceOf(Pri::class, Pri::make());
+        $this->assertStorageMatches($queue, '\Ds\PriorityQueue');
+
         $queue
             ->insert('low', 1)
             ->insert('high', 10)
@@ -84,18 +91,28 @@ final class AdvancedStructuresTest extends TestCase
     public function testVectorSupportsIndexedListOperations(): void
     {
         $vec = new Vec(['alpha', 'gamma']);
+        $this->assertInstanceOf(IVal::class, $vec);
+        $this->assertInstanceOf(Val::class, $vec);
+        $this->assertInstanceOf(Vec::class, Vec::make());
+        $this->assertStorageMatches($vec, '\Ds\Vector');
+
         $vec->insert(1, 'beta')->set(2, 'delta')->push('epsilon');
 
         $this->assertSame(['alpha', 'beta', 'delta', 'epsilon'], $vec->values());
         $this->assertSame('beta', $vec->get(1));
         $this->assertTrue($vec->contains('delta'));
-        $this->assertSame('beta', $vec->remove(1));
+        $this->assertSame($vec, $vec->remove(1));
         $this->assertSame(['alpha', 'delta', 'epsilon'], $vec->toArray());
     }
 
     public function testDequeSupportsBothEnds(): void
     {
         $deq = new Deq(['middle']);
+        $this->assertInstanceOf(IVal::class, $deq);
+        $this->assertInstanceOf(Val::class, $deq);
+        $this->assertInstanceOf(Deq::class, Deq::make());
+        $this->assertStorageMatches($deq, '\Ds\Deque');
+
         $deq->pushFront('front')->pushBack('back');
 
         $this->assertSame('front', $deq->peekFront());
@@ -108,6 +125,11 @@ final class AdvancedStructuresTest extends TestCase
     public function testPileSupportsLastInFirstOutAccess(): void
     {
         $pile = new Pile();
+        $this->assertInstanceOf(IVal::class, $pile);
+        $this->assertInstanceOf(Val::class, $pile);
+        $this->assertInstanceOf(Pile::class, Pile::make());
+        $this->assertStorageMatches($pile, '\Ds\Stack');
+
         $pile->push('first')->push('second');
 
         $this->assertSame('second', $pile->peek());
@@ -119,23 +141,48 @@ final class AdvancedStructuresTest extends TestCase
     public function testSetKeepsUniqueStrictValues(): void
     {
         $set = new Set(['1', '1', 1]);
+        $this->assertInstanceOf(IVal::class, $set);
+        $this->assertInstanceOf(Val::class, $set);
+        $this->assertInstanceOf(Set::class, Set::make());
+        $this->assertStorageMatches($set, '\Ds\Set');
+
         $set->add('2')->add('2');
 
         $this->assertSame(['1', 1, '2'], $set->values());
         $this->assertTrue($set->has(1));
-        $this->assertTrue($set->remove('1'));
+        $this->assertSame($set, $set->remove('1'));
         $this->assertSame([1, '2'], $set->values());
     }
 
     public function testDictionaryStoresKeyedValues(): void
     {
         $dict = new Dict(['alpha' => 1]);
+        $this->assertInstanceOf(IVal::class, $dict);
+        $this->assertInstanceOf(Val::class, $dict);
+        $this->assertInstanceOf(Dict::class, Dict::make());
+        $this->assertStorageMatches($dict, '\Ds\Map');
+
         $dict->set('beta', 2)->put('gamma', 3);
 
         $this->assertTrue($dict->has('beta'));
         $this->assertSame(2, $dict->get('beta'));
         $this->assertSame(['alpha', 'beta', 'gamma'], $dict->keys());
-        $this->assertTrue($dict->remove('alpha'));
+        $this->assertSame($dict, $dict->remove('alpha'));
         $this->assertSame(['beta' => 2, 'gamma' => 3], $dict->toArray());
+    }
+
+    private function assertStorageMatches(IVal $value, string $dsClass): void
+    {
+        $ref = new \ReflectionClass($value);
+        $property = $ref->getProperty('_data');
+        $property->setAccessible(true);
+        $data = $property->getValue($value);
+
+        if (class_exists($dsClass)) {
+            $this->assertInstanceOf($dsClass, $data);
+            return;
+        }
+
+        $this->assertIsArray($data);
     }
 }
