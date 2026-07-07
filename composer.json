@@ -11,6 +11,9 @@
   "require-dev": {
     "phpunit/phpunit": "^10.5"
   },
+  "suggest": {
+    "ext-ds": "Provides native Vector, Set, Map, Deque, Stack, and PriorityQueue backing stores for root data-structure primitives."
+  },
   "autoload": {
     "psr-4": {
       "BlueFission\\": "src/"

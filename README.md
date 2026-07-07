@@ -15,8 +15,9 @@ The first scaffold focuses on:
 - Kafka-style message envelopes and offset tracking.
 - Neo4j-style graph node, edge, path, and traversal objects.
 - Advanced data structures used around storage adapters, including Bloom
-  filters, skip lists, priority queues, weighted collections, and spatial
-  points.
+  filters, skip lists, priority queues, weighted collections, root namespace
+  `IVal` primitives (`Vec`, `Set`, `Dict`, `Deq`, `Pri`, `Pile`) backed by
+  php-ds when available, and spatial points.
 
 See [SPEC.md](SPEC.md) and [ARCHITECTURE.md](ARCHITECTURE.md) for the initial
 scope and extension model.

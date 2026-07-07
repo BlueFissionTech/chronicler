@@ -5,7 +5,9 @@
 Chronicler uses the same broad PSR-4 shape as sibling Blue Fission libraries:
 
 - `BlueFission\\` maps to `src/`.
-- Library classes live under `BlueFission\Chronicler`.
+- Storage-specific library classes live under `BlueFission\Chronicler`.
+- Primitive-style data structures that extend the DevElation `Val`/`IVal`
+  value-object surface may live at the root `BlueFission` namespace.
 - Tests live under `BlueFission\Chronicler\Tests`.
 
 ## Layers
@@ -39,7 +41,10 @@ planning, or model-provider semantics.
   opening object-store, filesystem, or HTTP clients.
 - `Reference` for generic graph, document, artifact, and event-offset links.
 - `Structures` for Bloom filters, skip lists, priority queues, weighted
-  collections, spatial points, and similar storage-adjacent structures.
+  collections, spatial points, and storage-specific internals. Root namespace
+  primitives `Vec`, `Set`, `Dict`, `Deq`, `Pri`, and `Pile` provide the short
+  reusable `IVal` data-structure surface and prefer php-ds backing stores when
+  available.
 
 ### Connections
 

@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace BlueFission\Chronicler\Storage\Structures;
 
+use ArrayAccess;
+use ArrayIterator;
 use BlueFission\Arr;
 use BlueFission\Chronicler\Support\DevElationValues;
+use BlueFission\Collections\Collection;
 use BlueFission\DataTypes;
 use BlueFission\Date;
 use BlueFission\IVal;
+use BlueFission\Net\HTTP;
 use BlueFission\Num;
 use BlueFission\Obj;
 use BlueFission\Str;
 use BlueFission\Val;
+use IteratorAggregate;
+use Traversable;
 
-final class WeightedCollection extends Obj
+final class WeightedCollection extends Obj implements ArrayAccess, IteratorAggregate
 {
     use DevElationValues;
 
@@ -141,6 +147,26 @@ final class WeightedCollection extends Obj
         return $this;
     }
 
+    public function setSort(bool $sorts): self
+    {
+        $this->autosort = $sorts;
+
+        if ($sorts) {
+            $this->sortEntries();
+        }
+
+        return $this;
+    }
+
+    public function setMax(int $max): self
+    {
+        $this->max = (int)Num::max(1, $max);
+        $this->setEntries($this->trimToMax($this->entries()));
+        $this->sortEntries();
+
+        return $this;
+    }
+
     public function decay(bool $enabled = true, ?float $rate = null): self
     {
         $this->decay_enabled = $enabled;
@@ -151,7 +177,12 @@ final class WeightedCollection extends Obj
         return $this;
     }
 
-    public function optimize(int|float $tolerance = 0, array $noise = []): self
+    public function setDecay(bool $decays, ?float $rate = null): self
+    {
+        return $this->decay($decays, $rate);
+    }
+
+    public function optimize(int|float $tolerance = 10, array $noise = []): self
     {
         $filtered = Arr::make();
         Arr::make($this->entries())->each(function (mixed $entry) use ($filtered, $tolerance, $noise): void {
@@ -168,6 +199,18 @@ final class WeightedCollection extends Obj
         $this->sortEntries();
 
         return $this;
+    }
+
+    public function sort(?callable $callback = null): Collection
+    {
+        if ($callback) {
+            $entries = Arr::make($this->entries())->sort($callback)->val();
+            $this->setEntries($this->withPercentages($entries));
+        } else {
+            $this->sortEntries();
+        }
+
+        return new Collection($this->keyedEntries());
     }
 
     public function entries(): array
@@ -204,20 +247,104 @@ final class WeightedCollection extends Obj
         });
 
         $count = Arr::count($weights->val());
+        $weightValues = $weights->val();
+        $mean = $count > 0 ? Num::make($total)->divide($count)->val() : 0.0;
+        $variance = $this->variance($weightValues, $mean, true);
+        $popVariance = $this->variance($weightValues, $mean, false);
+        $std = Num::make($variance)->sqrt()->val();
+        $popStd = Num::make($popVariance)->sqrt()->val();
 
         return [
             'count' => $count,
             'total' => $total,
             'min' => $this->aggregateWeight($weights->val(), 'min'),
             'max' => $this->aggregateWeight($weights->val(), 'max'),
-            'mean' => $count > 0 ? Num::make($total)->divide($count)->val() : 0.0,
+            'mode' => $this->mode($weightValues),
+            'median' => $this->median($weightValues),
+            'mean' => $mean,
+            'mean1' => $mean,
+            'mean2' => $mean,
+            'mean3' => $mean,
+            'variance1' => $variance,
+            'variance2' => $variance,
+            'variance3' => $variance,
+            'popvariance1' => $popVariance,
+            'popvariance2' => $popVariance,
+            'popvariance3' => $popVariance,
+            'std1' => $std,
+            'std2' => $std,
+            'std3' => $std,
+            'popstd1' => $popStd,
+            'popstd2' => $popStd,
+            'popstd3' => $popStd,
+            'cv1' => $mean > 0 ? Num::make($std)->divide($mean)->val() : 0.0,
+            'cv2' => $mean > 0 ? Num::make($std)->divide($mean)->val() : 0.0,
+            'cv3' => $mean > 0 ? Num::make($std)->divide($mean)->val() : 0.0,
+            'outliers' => 0,
+            'super_outliers' => 0,
             'values' => $this->ranked(),
         ];
+    }
+
+    public function data(): array
+    {
+        $stats = $this->stats();
+        $stats['values'] = $this->keyedEntries();
+
+        return $stats;
     }
 
     public function toArray(): array
     {
         return $this->ranked();
+    }
+
+    public function getIterator(): Traversable
+    {
+        return new ArrayIterator($this->keyedEntries());
+    }
+
+    public function offsetExists(mixed $offset): bool
+    {
+        $key = $this->offsetKey($offset);
+
+        return Val::isNotNull($key) ? $this->has($key) : false;
+    }
+
+    public function offsetGet(mixed $offset): mixed
+    {
+        $key = $this->offsetKey($offset);
+        if (Val::isNull($key)) {
+            return null;
+        }
+
+        return $this->entryFor($key);
+    }
+
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        $key = $this->offsetKey($offset);
+
+        if (Arr::is($value) && Arr::hasKey($value, 'value')) {
+            $weight = (int)Arr::getPath($value, 'weight', 1);
+            $this->add(Arr::getPath($value, 'value'), $key, $weight);
+            return;
+        }
+
+        $this->add($value, $key);
+    }
+
+    public function offsetUnset(mixed $offset): void
+    {
+        $key = $this->offsetKey($offset);
+        if (Val::isNotNull($key)) {
+            $this->remove($key);
+        }
+    }
+
+    public function __toString(): string
+    {
+        return HTTP::jsonEncode($this->data());
     }
 
     private function entry(string $key, mixed $value, int|float $weight, int $sequence): array
@@ -347,6 +474,104 @@ final class WeightedCollection extends Obj
         });
 
         return $result;
+    }
+
+    private function keyedEntries(): array
+    {
+        $entries = [];
+        Arr::make($this->ranked())->each(function (mixed $entry) use (&$entries): void {
+            $entry = Arr::toArray($entry);
+            $key = Arr::getPath($entry, 'key');
+            if (Val::isNotNull($key)) {
+                $entries[(string)$key] = $entry;
+            }
+        });
+
+        return $entries;
+    }
+
+    private function entryFor(string|int $key): ?array
+    {
+        $index = $this->indexOf($key);
+        if (Val::isNull($index)) {
+            return null;
+        }
+
+        return Arr::toArray(Arr::getPath($this->entries(), $index, []));
+    }
+
+    private function variance(array $weights, int|float $mean, bool $sample): float
+    {
+        $count = Arr::count($weights);
+        if ($count < 1 || ($sample && $count < 2)) {
+            return 0.0;
+        }
+
+        $sum = 0.0;
+        Arr::make($weights)->each(function (mixed $weight) use (&$sum, $mean): void {
+            $sum = Num::make($sum)->plus(Num::make($weight)->minus($mean)->pow(2)->val())->val();
+        });
+
+        $denominator = $sample ? Num::make($count)->minus(1)->val() : $count;
+
+        return (float)Num::make($sum)->divide($denominator)->val();
+    }
+
+    private function median(array $weights): float
+    {
+        $count = Arr::count($weights);
+        if ($count === 0) {
+            return 0.0;
+        }
+
+        $weights = Arr::make($weights)->sort()->values()->val();
+        $middle = (int)floor($count / 2);
+
+        if ($count % 2 === 1) {
+            return (float)Arr::getPath($weights, $middle, 0);
+        }
+
+        return (float)Num::make(Arr::getPath($weights, $middle - 1, 0))
+            ->plus(Arr::getPath($weights, $middle, 0))
+            ->divide(2)
+            ->val();
+    }
+
+    private function mode(array $weights): float
+    {
+        if (!Arr::isNotEmpty($weights)) {
+            return 0.0;
+        }
+
+        $counts = [];
+        Arr::make($weights)->each(function (mixed $weight) use (&$counts): void {
+            $key = (string)$weight;
+            $counts[$key] = Arr::getPath($counts, $key, 0) + 1;
+        });
+
+        $mode = (float)Arr::getPath($weights, 0, 0);
+        $max = 0;
+        Arr::make($counts)->each(function (mixed $count, string|int $weight) use (&$mode, &$max): void {
+            if ($count > $max) {
+                $max = (int)$count;
+                $mode = (float)$weight;
+            }
+        });
+
+        return $mode;
+    }
+
+    private function offsetKey(mixed $key): string|int|null
+    {
+        if (Str::is($key)) {
+            return (string)$key;
+        }
+
+        if (Num::is($key)) {
+            return (int)$key;
+        }
+
+        return null;
     }
 
     private function nextSequence(): int
