@@ -88,6 +88,53 @@ final class AdvancedStructuresTest extends TestCase
         $this->assertFalse($collection->has('a'));
     }
 
+    public function testWeightedCollectionPreservesOrganizedCollectionSurface(): void
+    {
+        $collection = new WeightedCollection();
+        $collection
+            ->setMax(5000)
+            ->setDecay(true, 0.001)
+            ->setSort(true)
+            ->add('value1', 'key1', 1)
+            ->add('value2', 'key2', 2);
+
+        $collection->sort();
+        $values = [];
+        foreach ($collection as $entry) {
+            $values[] = $entry['value'];
+        }
+
+        $this->assertSame(['value2', 'value1'], $values);
+
+        $collection->optimize(1.5);
+        $this->assertSame('value2', $collection->get('key2', false));
+        $this->assertNull($collection->get('key1', false));
+
+        $tokens = ['A', 'B', 'C', 'D', 'E'];
+        $weights = [600, 470, 170, 430, 300];
+        $weighted = new WeightedCollection();
+        foreach ($tokens as $index => $token) {
+            $weighted->add($token, $token, $weights[$index]);
+        }
+
+        $stats = $weighted->stats();
+        $data = $weighted->data();
+
+        $this->assertArrayHasKey('mean1', $stats);
+        $this->assertSame(5, $data['count']);
+        $this->assertSame(1970.0, $data['total']);
+        $this->assertSame(600.0, $data['max']);
+        $this->assertSame(170.0, $data['min']);
+        $this->assertSame(394.0, $data['mean1']);
+        $this->assertSame(21704, (int)$data['popvariance1']);
+        $this->assertSame(147, (int)$data['popstd1']);
+        $this->assertSame(27130, (int)$data['variance1']);
+        $this->assertSame(164, (int)$data['std1']);
+        $this->assertArrayHasKey('A', $data['values']);
+        $this->assertSame('A', $weighted['A']['value']);
+        $this->assertJson((string)$weighted);
+    }
+
     public function testVectorSupportsIndexedListOperations(): void
     {
         $vec = new Vec(['alpha', 'gamma']);
