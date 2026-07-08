@@ -6,7 +6,7 @@
   "require": {
     "php": ">=8.2",
     "ext-json": "*",
-    "bluefission/develation": "dev-master"
+    "bluefission/develation": "^1.3.39"
   },
   "require-dev": {
     "phpunit/phpunit": "^10.5"
@@ -27,14 +27,6 @@
   "scripts": {
     "test": "vendor/bin/phpunit --do-not-cache-result"
   },
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/bluefissiontech/develation.git"
-    }
-  ],
-  "minimum-stability": "dev",
-  "prefer-stable": true,
   "config": {
     "allow-plugins": {
       "php-http/discovery": true
