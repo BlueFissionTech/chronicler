@@ -2,7 +2,28 @@
   "name": "bluefission/chronicler",
   "description": "DevElation-oriented storage objects, connectors, and query helpers for Kafka, Neo4j, GraphQL, and related data systems.",
   "type": "library",
+  "homepage": "https://github.com/BlueFissionTech/chronicler",
   "license": "MIT",
+  "keywords": [
+    "chronicler",
+    "bluefission",
+    "materia",
+    "php",
+    "develation",
+    "storage",
+    "data",
+    "graphql",
+    "kafka",
+    "neo4j"
+  ],
+  "authors": [
+    {
+      "name": "Devon Scott",
+      "email": "dscott@bluefission.com",
+      "homepage": "https://bluefission.com",
+      "role": "Developer"
+    }
+  ],
   "require": {
     "php": ">=8.2",
     "ext-json": "*",
@@ -28,8 +49,37 @@
     "test": "vendor/bin/phpunit --do-not-cache-result"
   },
   "config": {
+    "platform-check": true,
     "allow-plugins": {
       "php-http/discovery": true
     }
+  },
+  "archive": {
+    "exclude": [
+      "/.codex",
+      "/.github",
+      "/.idea",
+      "/.phpunit.cache",
+      "/.phpunit.result.cache",
+      "/AGENTS.behavior.md",
+      "/AGENTS.md",
+      "/AGENTS.standards.md",
+      "/ARCHITECTURE.md",
+      "/SPEC.md",
+      "/artifacts",
+      "/composer.lock",
+      "/docker",
+      "/examples",
+      "/harness.json",
+      "/phpunit.xml",
+      "/phpunit.xml.dist",
+      "/scripts",
+      "/tests",
+      "/tests.md"
+    ]
+  },
+  "support": {
+    "issues": "https://github.com/BlueFissionTech/chronicler/issues",
+    "source": "https://github.com/BlueFissionTech/chronicler"
   }
 }

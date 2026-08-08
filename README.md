@@ -4,6 +4,19 @@ Chronicler is a Blue Fission PHP library for storage-oriented value objects,
 query builders, and connector scaffolds that complement DevElation without
 requiring optional services in the baseline test suite.
 
+## Installation
+
+Install Chronicler with Composer:
+
+```bash
+composer require bluefission/chronicler
+```
+
+The package requires PHP 8.2 or newer and resolves DevElation through
+`bluefission/develation:^1.3.39`.
+
+## Scope
+
 The first scaffold focuses on:
 
 - GraphQL field and selection helpers.
