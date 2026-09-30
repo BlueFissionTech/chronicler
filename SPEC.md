@@ -21,6 +21,12 @@ actual network drivers should remain opt-in adapters.
 - As a storage integrator, I can emit a deterministic packet that preserves
   payload, source ownership, provenance, confidence, visibility, authority, and
   diagnostics metadata without granting write authority to consumers.
+- As an evidence producer, I can retain immutable raw inputs and create
+  structured or derived records that bind the exact identity and digest of
+  every parent.
+- As an evidence consumer, I can distinguish trust, sensitivity, freshness,
+  quarantine, invalidation, and withdrawal without allowing source recovery or
+  a derived summary to resurrect superseded evidence.
 - As an artifact producer, I can register media, documents, datasets, and
   generated outputs with retrieval metadata and stable storage references.
 - As a storage consumer, I can follow graph, document, artifact, and event-offset
@@ -50,6 +56,17 @@ actual network drivers should remain opt-in adapters.
   dispatching, and connection inheritance where appropriate.
 - Storage packets expose traceability diagnostics when source, provenance, or
   authority metadata is incomplete.
+- Evidence records use a versioned canonical JSON representation and SHA-256
+  digest, preserve source and provenance, and always expose `authority=none`.
+- Structured and derived records retain exact parent id/digest lineage; an
+  inactive parent cannot seed new derived evidence.
+- Lifecycle changes are append-only. Quarantined, invalidated, and withdrawn
+  records remain auditable but are excluded from active reads.
+- Tombstones bind an exact target id, digest, and scope, use monotonic sequence
+  and idempotency fields, and cannot be projected onto unrelated evidence.
+- The baseline evidence lifecycle is service-free. A DevElation-backed SQLite
+  adapter is optional and preserves state across close/reopen when SQLite3 is
+  available.
 - Artifact contracts expose stable references, retrieval metadata, asset
   inventories, and generic resource links.
 - Optional service integrations remain adapter-level extensions over the
