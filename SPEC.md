@@ -60,10 +60,19 @@ actual network drivers should remain opt-in adapters.
   digest, preserve source and provenance, and always expose `authority=none`.
 - Structured and derived records retain exact parent id/digest lineage; an
   inactive parent cannot seed new derived evidence.
-- Lifecycle changes are append-only. Quarantined, invalidated, and withdrawn
-  records remain auditable but are excluded from active reads.
+- Lifecycle changes are append-only, versioned, canonically digested, and
+  revalidated on reopen. Tampered events, unknown record references, and broken
+  per-record sequences fail closed. Quarantined, invalidated, and withdrawn
+  records remain auditable but are excluded from active reads and cannot seed
+  new derivations.
 - Tombstones bind an exact target id, digest, and scope, use monotonic sequence
-  and idempotency fields, and cannot be projected onto unrelated evidence.
+  and full-digest idempotency, reject reused ids with changed content, and
+  cannot be projected onto unrelated evidence. Supersedes and replacement
+  references must resolve exact retained same-scope lineage.
+- Source and provenance maps validate required identity and lineage fields
+  while retaining namespaced extension data. Verified trust requires explicit
+  issuer, proof, and verification state; a digest establishes content identity,
+  not authenticity or host authority.
 - The baseline evidence lifecycle is service-free. A DevElation-backed SQLite
   adapter is optional and preserves state across close/reopen when SQLite3 is
   available.

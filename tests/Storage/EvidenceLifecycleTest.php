@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace BlueFission\Chronicler\Tests\Storage;
 
+use BlueFission\Chronicler\Storage\Evidence\CanonicalJson;
 use BlueFission\Chronicler\Storage\Evidence\EvidenceLedger;
 use BlueFission\Chronicler\Storage\Evidence\EvidenceRecord;
 use BlueFission\Chronicler\Storage\Evidence\EvidenceTombstone;
@@ -25,6 +26,46 @@ final class EvidenceLifecycleTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         EvidenceRecord::fromArray($tampered);
+    }
+
+    public function testTypedAccessorsPreserveCanonicalShapeAndVerifiedTrustRequiresProof(): void
+    {
+        $record = $this->raw('accessor-1');
+
+        self::assertSame(1, $record->version());
+        self::assertSame('chronicler-evidence-v1', $record->canonicalization());
+        self::assertSame('fixture', $record->source()['system']);
+        self::assertSame(['value' => 7], $record->payload());
+        self::assertSame('fixture:accessor-1', $record->provenance()['cursor']);
+        self::assertSame('observed', $record->trust());
+        self::assertSame('internal', $record->sensitivity());
+        self::assertSame('current', $record->freshness());
+        self::assertSame('none', $record->authority());
+        self::assertSame('2026-09-30T12:00:00+00:00', $record->recordedAt());
+
+        $unproved = $record->toArray();
+        $unproved['trust'] = 'verified';
+        $unproved['digest'] = CanonicalJson::digest($unproved);
+        $this->assertInvalid(static fn (): EvidenceRecord => EvidenceRecord::fromArray($unproved));
+
+        $verified = EvidenceRecord::capture(
+            'verified-1',
+            'raw',
+            ['system' => 'fixture', 'record' => 'verified-1'],
+            ['value' => 8],
+            [
+                'cursor' => 'fixture:verified-1',
+                'verification' => [
+                    'state' => 'verified',
+                    'issuer' => 'fixture-verifier',
+                    'proof' => 'proof:verified-1',
+                ],
+            ],
+            trust: 'verified',
+            freshness: 'current',
+            recordedAt: '2026-09-30T12:00:00+00:00'
+        );
+        self::assertSame('verified', $verified->trust());
     }
 
     public function testDerivedEvidenceRetainsExactParentAndCannotEraseProvenance(): void
@@ -124,6 +165,168 @@ final class EvidenceLifecycleTest extends TestCase
         $ledger->withdraw('target-1', $outOfOrder);
     }
 
+    public function testTombstoneReplayBindsFullDigestAndIdsCannotBeReused(): void
+    {
+        $ledger = new EvidenceLedger();
+        $target = $this->raw('replay-target');
+        $ledger->append($target);
+
+        $original = EvidenceTombstone::create(
+            'replay-tombstone',
+            $target,
+            'source withdrawal',
+            'source-system',
+            1,
+            'replay-key',
+            '2026-09-30T12:10:00+00:00'
+        );
+        $ledger->withdraw($target->id(), $original);
+        $ledger->withdraw($target->id(), $original);
+
+        $changedReplay = EvidenceTombstone::create(
+            'replay-tombstone',
+            $target,
+            'changed reason',
+            'source-system',
+            1,
+            'replay-key',
+            '2026-09-30T12:10:00+00:00'
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $changedReplay): void {
+            $ledger->withdraw($target->id(), $changedReplay);
+        });
+
+        $reusedId = EvidenceTombstone::create(
+            'replay-tombstone',
+            $target,
+            'different event',
+            'source-system',
+            2,
+            'different-key',
+            '2026-09-30T12:11:00+00:00'
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $reusedId): void {
+            $ledger->withdraw($target->id(), $reusedId);
+        });
+
+        $reusedKey = EvidenceTombstone::create(
+            'different-tombstone-id',
+            $target,
+            'different event',
+            'source-system',
+            2,
+            'replay-key',
+            '2026-09-30T12:12:00+00:00'
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $reusedKey): void {
+            $ledger->withdraw($target->id(), $reusedKey);
+        });
+        self::assertCount(1, $ledger->history($target->id())['tombstones']);
+    }
+
+    public function testSupersedesAndReplacementReferencesMustResolveExactly(): void
+    {
+        $ledger = new EvidenceLedger();
+        $target = $this->raw('lineage-target');
+        $replacement = $this->raw('lineage-replacement');
+        $other = $this->raw('lineage-other');
+        $crossScope = $this->raw('lineage-cross-scope', scope: 'other');
+        foreach ([$target, $replacement, $other, $crossScope] as $record) {
+            $ledger->append($record);
+        }
+
+        $first = EvidenceTombstone::create(
+            'lineage-first', $target, 'withdrawal', 'source-system', 1, 'lineage-key-1',
+            '2026-09-30T12:10:00+00:00'
+        );
+        $ledger->withdraw($target->id(), $first);
+
+        $unknownSupersedes = EvidenceTombstone::create(
+            'lineage-unknown', $target, 'correction', 'source-system', 2, 'lineage-key-unknown',
+            '2026-09-30T12:11:00+00:00', 'missing-tombstone'
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $unknownSupersedes): void {
+            $ledger->withdraw($target->id(), $unknownSupersedes);
+        });
+
+        $otherTombstone = EvidenceTombstone::create(
+            'lineage-other-tombstone', $other, 'other withdrawal', 'source-system', 1, 'lineage-other-key',
+            '2026-09-30T12:11:00+00:00'
+        );
+        $ledger->withdraw($other->id(), $otherTombstone);
+        $crossTargetSupersedes = EvidenceTombstone::create(
+            'lineage-cross-target', $target, 'correction', 'source-system', 2, 'lineage-key-cross-target',
+            '2026-09-30T12:12:00+00:00', $otherTombstone->id()
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $crossTargetSupersedes): void {
+            $ledger->withdraw($target->id(), $crossTargetSupersedes);
+        });
+
+        $unknownReplacement = EvidenceTombstone::create(
+            'lineage-unknown-replacement', $target, 'correction', 'source-system', 2, 'lineage-key-unknown-replacement',
+            '2026-09-30T12:13:00+00:00', $first->id(),
+            ['id' => 'missing-record', 'digest' => $replacement->digest()]
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $unknownReplacement): void {
+            $ledger->withdraw($target->id(), $unknownReplacement);
+        });
+
+        $mismatchedReplacement = EvidenceTombstone::create(
+            'lineage-mismatched-replacement', $target, 'correction', 'source-system', 2, 'lineage-key-mismatch',
+            '2026-09-30T12:14:00+00:00', $first->id(),
+            ['id' => $replacement->id(), 'digest' => $target->digest()]
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $mismatchedReplacement): void {
+            $ledger->withdraw($target->id(), $mismatchedReplacement);
+        });
+
+        $crossScopeReplacement = EvidenceTombstone::create(
+            'lineage-cross-scope-replacement', $target, 'correction', 'source-system', 2, 'lineage-key-cross-scope',
+            '2026-09-30T12:15:00+00:00', $first->id(),
+            ['id' => $crossScope->id(), 'digest' => $crossScope->digest()]
+        );
+        $this->assertInvalid(function () use ($ledger, $target, $crossScopeReplacement): void {
+            $ledger->withdraw($target->id(), $crossScopeReplacement);
+        });
+
+        $valid = EvidenceTombstone::create(
+            'lineage-valid', $target, 'correction', 'source-system', 2, 'lineage-key-valid',
+            '2026-09-30T12:16:00+00:00', $first->id(),
+            ['id' => $replacement->id(), 'digest' => $replacement->digest()]
+        );
+        $ledger->withdraw($target->id(), $valid);
+        self::assertSame($first->id(), $valid->supersedes());
+        self::assertSame($replacement->id(), $valid->replacement()['id']);
+        self::assertCount(2, $ledger->history($target->id())['tombstones']);
+    }
+
+    public function testParentAndReplacementIdsMustBeNonEmptyStrings(): void
+    {
+        $parent = $this->raw('typed-parent');
+        $derived = EvidenceRecord::capture(
+            'typed-derived',
+            'derived',
+            ['system' => 'fixture'],
+            ['value' => 1],
+            ['operation' => 'derive-v1'],
+            [['id' => $parent->id(), 'digest' => $parent->digest()]],
+            recordedAt: '2026-09-30T12:00:00+00:00'
+        );
+        $invalidParent = $derived->toArray();
+        $invalidParent['parents'][0]['id'] = 42;
+        $invalidParent['digest'] = CanonicalJson::digest($invalidParent);
+        $this->assertInvalid(static fn (): EvidenceRecord => EvidenceRecord::fromArray($invalidParent));
+
+        $tombstone = EvidenceTombstone::create(
+            'typed-tombstone', $parent, 'withdrawal', 'source-system', 1, 'typed-key',
+            '2026-09-30T12:10:00+00:00', replacement: ['id' => 'replacement', 'digest' => $parent->digest()]
+        );
+        $invalidReplacement = $tombstone->toArray();
+        $invalidReplacement['replacement']['id'] = 42;
+        $invalidReplacement['digest'] = CanonicalJson::digest($invalidReplacement);
+        $this->assertInvalid(static fn (): EvidenceTombstone => EvidenceTombstone::fromArray($invalidReplacement));
+    }
+
     public function testOptionalDevElationSqliteStoreSurvivesCloseAndReopen(): void
     {
         if (!class_exists('SQLite3')) {
@@ -162,7 +365,115 @@ final class EvidenceLifecycleTest extends TestCase
         }
     }
 
-    private function raw(string $id, array $payload = ['value' => 7]): EvidenceRecord
+    public function testPersistedLifecycleEventTamperingFailsClosedOnReopen(): void
+    {
+        if (!class_exists('SQLite3')) {
+            self::markTestSkipped('SQLite3 is optional.');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'chronicler-event-tamper-');
+        self::assertIsString($path);
+
+        try {
+            $ledger = new EvidenceLedger(new SqliteEvidenceStore($path));
+            $ledger->append($this->raw('tampered-event-record'));
+            $ledger->close();
+
+            $database = new \SQLite3($path);
+            $body = $database->querySingle('SELECT body FROM evidence_events LIMIT 1');
+            self::assertIsString($body);
+            $event = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            $event['reason'] = 'tampered reason';
+            $statement = $database->prepare('UPDATE evidence_events SET body = :body');
+            self::assertNotFalse($statement);
+            $statement->bindValue(':body', json_encode($event, JSON_THROW_ON_ERROR), SQLITE3_TEXT);
+            self::assertNotFalse($statement->execute());
+            $database->close();
+
+            $store = new SqliteEvidenceStore($path);
+            try {
+                $this->assertInvalid(static fn (): EvidenceLedger => new EvidenceLedger($store));
+            } finally {
+                $store->close();
+            }
+
+            unset($event['id'], $event['digest']);
+            $event['record_id'] = 'missing-record';
+            $event['id'] = 'sha256:' . hash('sha256', CanonicalJson::encode($event));
+            $event['digest'] = CanonicalJson::digest($event);
+            $database = new \SQLite3($path);
+            $statement = $database->prepare('UPDATE evidence_events SET body = :body');
+            self::assertNotFalse($statement);
+            $statement->bindValue(':body', json_encode($event, JSON_THROW_ON_ERROR), SQLITE3_TEXT);
+            self::assertNotFalse($statement->execute());
+            $database->close();
+
+            $store = new SqliteEvidenceStore($path);
+            try {
+                $this->assertInvalid(static fn (): EvidenceLedger => new EvidenceLedger($store));
+            } finally {
+                $store->close();
+            }
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    public function testEachInactiveStateBlocksDerivationAfterReopen(): void
+    {
+        if (!class_exists('SQLite3')) {
+            self::markTestSkipped('SQLite3 is optional.');
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'chronicler-inactive-');
+        self::assertIsString($path);
+
+        try {
+            $ledger = new EvidenceLedger(new SqliteEvidenceStore($path));
+            $quarantined = $this->raw('reopen-quarantined');
+            $invalidated = $this->raw('reopen-invalidated');
+            $withdrawn = $this->raw('reopen-withdrawn');
+            foreach ([$quarantined, $invalidated, $withdrawn] as $record) {
+                $ledger->append($record);
+            }
+            $ledger->quarantine($quarantined->id(), 'review');
+            $ledger->invalidate($invalidated->id(), 'invalid');
+            $ledger->withdraw($withdrawn->id(), EvidenceTombstone::create(
+                'reopen-tombstone', $withdrawn, 'withdrawal', 'source-system', 1, 'reopen-key',
+                '2026-09-30T12:10:00+00:00'
+            ));
+            $ledger->close();
+
+            $restored = new EvidenceLedger(new SqliteEvidenceStore($path));
+            self::assertSame('quarantined', $restored->state($quarantined->id()));
+            self::assertSame('invalidated', $restored->state($invalidated->id()));
+            self::assertSame('withdrawn', $restored->state($withdrawn->id()));
+
+            foreach ([$quarantined, $invalidated, $withdrawn] as $index => $parent) {
+                $derived = EvidenceRecord::capture(
+                    'blocked-derived-' . $index,
+                    'derived',
+                    ['system' => 'fixture'],
+                    ['value' => $index],
+                    ['operation' => 'derive-v1'],
+                    [['id' => $parent->id(), 'digest' => $parent->digest()]],
+                    recordedAt: '2026-09-30T12:20:00+00:00'
+                );
+                $this->assertInvalid(function () use ($restored, $derived): void {
+                    $restored->append($derived);
+                });
+            }
+            $restored->close();
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+    }
+
+    private function raw(string $id, array $payload = ['value' => 7], string $scope = 'default'): EvidenceRecord
     {
         return EvidenceRecord::capture(
             $id,
@@ -172,7 +483,18 @@ final class EvidenceLifecycleTest extends TestCase
             ['cursor' => 'fixture:' . $id],
             trust: 'observed',
             freshness: 'current',
-            recordedAt: '2026-09-30T12:00:00+00:00'
+            recordedAt: '2026-09-30T12:00:00+00:00',
+            scope: $scope
         );
+    }
+
+    private function assertInvalid(callable $operation): void
+    {
+        try {
+            $operation();
+            self::fail('Expected invalid evidence input to fail closed.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertNotSame('', $exception->getMessage());
+        }
     }
 }

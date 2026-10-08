@@ -34,10 +34,21 @@ records from active reads.
 
 Tombstones are scoped to an exact record id, digest, and scope. Callers must
 name the projected record when applying one, preventing an unrelated envelope
-from being marked withdrawn. Replaying the same idempotency key is safe, while
-out-of-order sequences and target mismatches are rejected.
+from being marked withdrawn. Replay is idempotent only when the tombstone id,
+idempotency key, target, scope, and full canonical digest all match. Reused ids,
+changed-content replay, out-of-order sequences, and target mismatches fail
+closed. Supersedes references must resolve an earlier tombstone for the exact
+target and scope; replacements must resolve a distinct retained record with the
+exact digest and same scope.
+
+Source and provenance maps remain extensible, but required source identity and
+lineage fields are validated. Caller-asserted `verified` trust also requires an
+explicit verification issuer, proof reference, and verification state. Typed
+read-only accessors are available alongside each canonical `toArray()` shape.
 
 The default ledger is service-free and in-memory. `SqliteEvidenceStore` is an
-optional DevElation-backed adapter for durable append-only records, events, and
-tombstones; it requires the PHP SQLite3 extension and can be closed and reopened
-without changing evidence identity.
+optional DevElation-backed adapter for durable append-only records, versioned
+and digested lifecycle events, and tombstones; it requires the PHP SQLite3
+extension and can be closed and reopened without changing evidence identity.
+Tampered events, unknown record references, and broken event sequences make the
+stored ledger unavailable rather than changing projected state silently.

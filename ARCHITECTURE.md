@@ -70,7 +70,10 @@ service sockets.
   provenance, authority, or diagnostic context.
 - Use `EvidenceRecord` when the payload must retain a canonical identity and an
   auditable lifecycle. Never infer withdrawal from freshness or source status;
-  apply an explicit tombstone to its exact target projection.
+  apply an explicit tombstone to its exact target projection. Treat canonical
+  digests as content identity rather than authenticity or host authority, and
+  fail closed when persisted lifecycle events or their record references do not
+  revalidate on reopen.
 - Use artifact and resource references for stable storage links before binding
   to a concrete filesystem, object store, document service, or graph driver.
 - Keep service-backed tests opt-in and document required environment variables

@@ -12,13 +12,13 @@ final class EvidenceLedger
     /** @var array<string, EvidenceRecord> */
     private array $records = [];
 
-    /** @var list<array<string, mixed>> */
+    /** @var list<EvidenceLifecycleEvent> */
     private array $events = [];
 
     /** @var array<string, EvidenceTombstone> */
     private array $tombstones = [];
 
-    /** @var array<string, string> */
+    /** @var array<string, string> idempotency key to canonical tombstone digest */
     private array $idempotency = [];
 
     /** @var array<string, int> */
@@ -34,7 +34,7 @@ final class EvidenceLedger
             $this->records[$record->id()] = $record;
         }
         foreach ($store->events() as $event) {
-            $this->events[] = $event;
+            $this->registerEvent($event);
         }
         foreach ($store->tombstones() as $tombstone) {
             $this->registerTombstone($tombstone);
@@ -87,14 +87,27 @@ final class EvidenceLedger
             throw new InvalidArgumentException('A tombstone must bind the exact target id, digest, and scope.');
         }
 
+        $existing = $this->tombstones[$tombstone->id()] ?? null;
+        if ($existing !== null) {
+            if (hash_equals($existing->digest(), $tombstone->digest())
+                && $existing->idempotencyKey() === $tombstone->idempotencyKey()
+            ) {
+                return;
+            }
+
+            throw new InvalidArgumentException('A tombstone id cannot be reused for different content.');
+        }
+
         $known = $this->idempotency[$tombstone->idempotencyKey()] ?? null;
         if ($known !== null) {
-            if ($known === $tombstone->id()) {
+            if (hash_equals($known, $tombstone->digest())) {
                 return;
             }
 
             throw new InvalidArgumentException('A tombstone idempotency key cannot identify different events.');
         }
+
+        $this->assertTombstoneReferences($tombstone);
 
         $lastSequence = $this->sequences[$record->id()] ?? 0;
         if ($tombstone->sequence() <= $lastSequence) {
@@ -121,8 +134,8 @@ final class EvidenceLedger
         $record = $this->requireRecord($id);
         $types = [];
         foreach ($this->events as $event) {
-            if ($event['record_id'] === $record->id() && hash_equals($event['record_digest'], $record->digest())) {
-                $types[] = $event['type'];
+            if ($event->recordId() === $record->id() && hash_equals($event->recordDigest(), $record->digest())) {
+                $types[] = $event->type();
             }
         }
 
@@ -151,9 +164,12 @@ final class EvidenceLedger
         return [
             'record' => $record,
             'state' => $this->state($id),
-            'events' => array_values(array_filter(
-                $this->events,
-                static fn (array $event): bool => $event['record_id'] === $id
+            'events' => array_values(array_map(
+                static fn (EvidenceLifecycleEvent $event): array => $event->toArray(),
+                array_filter(
+                    $this->events,
+                    static fn (EvidenceLifecycleEvent $event): bool => $event->recordId() === $id
+                )
             )),
             'tombstones' => array_values(array_filter(
                 $this->tombstones,
@@ -176,41 +192,100 @@ final class EvidenceLedger
     {
         $sequence = 1;
         foreach ($this->events as $known) {
-            if ($known['record_id'] === $record->id()) {
-                $sequence = max($sequence, ((int) ($known['sequence'] ?? 0)) + 1);
+            if ($known->recordId() === $record->id()) {
+                $sequence = max($sequence, $known->sequence() + 1);
             }
         }
-        $occurredAt = gmdate(DATE_RFC3339);
-        $event = [
-            'id' => hash('sha256', CanonicalJson::encode([
-                'record_id' => $record->id(),
-                'record_digest' => $record->digest(),
-                'type' => $type,
-                'reason' => $reason,
-                'actor' => $actor,
-                'occurred_at' => $occurredAt,
-                'sequence' => $sequence,
-            ])),
-            'record_id' => $record->id(),
-            'record_digest' => $record->digest(),
-            'type' => $type,
-            'reason' => $reason,
-            'actor' => $actor,
-            'occurred_at' => $occurredAt,
-            'sequence' => $sequence,
-        ];
+        $event = EvidenceLifecycleEvent::create($record, $type, $reason, $actor, $sequence);
 
         $this->store?->appendEvent($event);
-        $this->events[] = $event;
+        $this->registerEvent($event);
     }
 
     private function registerTombstone(EvidenceTombstone $tombstone): void
     {
+        $record = $this->records[$tombstone->targetId()] ?? null;
+        if ($record === null || !$tombstone->appliesTo($record)) {
+            throw new InvalidArgumentException('Stored tombstone must bind an exact retained target.');
+        }
+
+        $existing = $this->tombstones[$tombstone->id()] ?? null;
+        if ($existing !== null && !hash_equals($existing->digest(), $tombstone->digest())) {
+            throw new InvalidArgumentException('Stored tombstone id is reused for different content.');
+        }
+        $known = $this->idempotency[$tombstone->idempotencyKey()] ?? null;
+        if ($known !== null && !hash_equals($known, $tombstone->digest())) {
+            throw new InvalidArgumentException('Stored tombstone idempotency key identifies different content.');
+        }
+
+        $this->assertTombstoneReferences($tombstone);
+
+        $lastSequence = $this->sequences[$tombstone->targetId()] ?? 0;
+        if ($tombstone->sequence() <= $lastSequence) {
+            throw new InvalidArgumentException('Stored tombstone sequence must advance monotonically for its target.');
+        }
+
         $this->tombstones[$tombstone->id()] = $tombstone;
-        $this->idempotency[$tombstone->idempotencyKey()] = $tombstone->id();
+        $this->idempotency[$tombstone->idempotencyKey()] = $tombstone->digest();
         $this->sequences[$tombstone->targetId()] = max(
             $this->sequences[$tombstone->targetId()] ?? 0,
             $tombstone->sequence()
         );
+    }
+
+    private function registerEvent(EvidenceLifecycleEvent $event): void
+    {
+        $record = $this->records[$event->recordId()] ?? null;
+        if ($record === null || !hash_equals($record->digest(), $event->recordDigest())) {
+            throw new InvalidArgumentException('Lifecycle events must identify an exact retained record.');
+        }
+
+        $lastSequence = 0;
+        foreach ($this->events as $known) {
+            if ($known->id() === $event->id()) {
+                if (hash_equals($known->digest(), $event->digest())) {
+                    return;
+                }
+
+                throw new InvalidArgumentException('Lifecycle event id is reused for different content.');
+            }
+            if ($known->recordId() === $event->recordId()) {
+                $lastSequence = max($lastSequence, $known->sequence());
+            }
+        }
+        if ($event->sequence() !== $lastSequence + 1) {
+            throw new InvalidArgumentException('Lifecycle event sequence must be contiguous for its record.');
+        }
+
+        $this->events[] = $event;
+    }
+
+    private function assertTombstoneReferences(EvidenceTombstone $tombstone): void
+    {
+        $supersedes = $tombstone->supersedes();
+        if ($supersedes !== null) {
+            $known = $this->tombstones[$supersedes] ?? null;
+            if ($known === null
+                || $known->targetId() !== $tombstone->targetId()
+                || !hash_equals($known->targetDigest(), $tombstone->targetDigest())
+                || $known->scope() !== $tombstone->scope()
+                || $known->sequence() >= $tombstone->sequence()
+            ) {
+                throw new InvalidArgumentException('Supersedes must identify an earlier tombstone for the exact target and scope.');
+            }
+        }
+
+        $replacement = $tombstone->replacement();
+        if ($replacement === null) {
+            return;
+        }
+        $record = $this->records[$replacement['id']] ?? null;
+        if ($record === null
+            || $record->id() === $tombstone->targetId()
+            || !hash_equals($record->digest(), $replacement['digest'])
+            || $record->scope() !== $tombstone->scope()
+        ) {
+            throw new InvalidArgumentException('Replacement must identify a distinct retained record with the exact digest and scope.');
+        }
     }
 }

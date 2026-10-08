@@ -34,7 +34,10 @@ final class SqliteEvidenceStore implements EvidenceStore
 
     public function events(): array
     {
-        return $this->readBodies('evidence_events');
+        return array_map(
+            static fn (array $row): EvidenceLifecycleEvent => EvidenceLifecycleEvent::fromArray($row),
+            $this->readBodies('evidence_events')
+        );
     }
 
     public function tombstones(): array
@@ -50,9 +53,9 @@ final class SqliteEvidenceStore implements EvidenceStore
         $this->insert('evidence_records', $record->id(), $record->toArray());
     }
 
-    public function appendEvent(array $event): void
+    public function appendEvent(EvidenceLifecycleEvent $event): void
     {
-        $this->insert('evidence_events', $event['id'], $event);
+        $this->insert('evidence_events', $event->id(), $event->toArray());
     }
 
     public function appendTombstone(EvidenceTombstone $tombstone): void

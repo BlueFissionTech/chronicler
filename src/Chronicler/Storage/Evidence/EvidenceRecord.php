@@ -90,6 +90,56 @@ final class EvidenceRecord
         return $this->data['parents'];
     }
 
+    public function version(): int
+    {
+        return $this->data['version'];
+    }
+
+    public function canonicalization(): string
+    {
+        return $this->data['canonicalization'];
+    }
+
+    public function source(): array
+    {
+        return $this->data['source'];
+    }
+
+    public function payload(): array
+    {
+        return $this->data['payload'];
+    }
+
+    public function provenance(): array
+    {
+        return $this->data['provenance'];
+    }
+
+    public function trust(): string
+    {
+        return $this->data['trust'];
+    }
+
+    public function sensitivity(): string
+    {
+        return $this->data['sensitivity'];
+    }
+
+    public function freshness(): string
+    {
+        return $this->data['freshness'];
+    }
+
+    public function authority(): string
+    {
+        return $this->data['authority'];
+    }
+
+    public function recordedAt(): string
+    {
+        return $this->data['recorded_at'];
+    }
+
     public function verifyDigest(): bool
     {
         return hash_equals(CanonicalJson::digest($this->data), $this->digest());
@@ -125,6 +175,9 @@ final class EvidenceRecord
         if (!is_array($data['source']) || $data['source'] === [] || !is_array($data['provenance']) || $data['provenance'] === []) {
             throw new InvalidArgumentException('Evidence source and provenance are required.');
         }
+        if (!isset($data['source']['system']) || !is_string($data['source']['system']) || $data['source']['system'] === '') {
+            throw new InvalidArgumentException('Evidence source requires a non-empty system identity.');
+        }
         if (!is_array($data['payload']) || !is_array($data['parents'])) {
             throw new InvalidArgumentException('Evidence payload and parents must be arrays.');
         }
@@ -137,7 +190,7 @@ final class EvidenceRecord
         if (!is_string($data['sensitivity']) || $data['sensitivity'] === '') {
             throw new InvalidArgumentException('Evidence sensitivity is required.');
         }
-        if (DateTimeImmutable::createFromFormat(DATE_RFC3339, $data['recorded_at']) === false) {
+        if (!is_string($data['recorded_at']) || DateTimeImmutable::createFromFormat(DATE_RFC3339, $data['recorded_at']) === false) {
             throw new InvalidArgumentException('Evidence recorded_at must be RFC3339.');
         }
         if (!is_string($data['digest']) || !preg_match('/^sha256:[a-f0-9]{64}$/', $data['digest'])) {
@@ -147,13 +200,44 @@ final class EvidenceRecord
         if ($data['form'] === 'raw' && $data['parents'] !== []) {
             throw new InvalidArgumentException('Raw evidence cannot have parent records.');
         }
+        if ($data['form'] === 'raw'
+            && (!isset($data['source']['record']) || !is_string($data['source']['record']) || $data['source']['record'] === '')
+        ) {
+            throw new InvalidArgumentException('Raw evidence source requires a non-empty record identity.');
+        }
+        if ($data['form'] === 'raw'
+            && (!isset($data['provenance']['cursor']) || !is_string($data['provenance']['cursor']) || $data['provenance']['cursor'] === '')
+        ) {
+            throw new InvalidArgumentException('Raw evidence provenance requires a non-empty cursor.');
+        }
         if ($data['form'] !== 'raw' && $data['parents'] === []) {
             throw new InvalidArgumentException('Structured and derived evidence require parent records.');
+        }
+        if ($data['form'] !== 'raw'
+            && (!isset($data['provenance']['operation']) || !is_string($data['provenance']['operation']) || $data['provenance']['operation'] === '')
+        ) {
+            throw new InvalidArgumentException('Structured and derived evidence provenance requires a non-empty operation.');
+        }
+        if ($data['trust'] === 'verified') {
+            $verification = $data['provenance']['verification'] ?? null;
+            if (!is_array($verification)
+                || ($verification['state'] ?? null) !== 'verified'
+                || !isset($verification['issuer'], $verification['proof'])
+                || !is_string($verification['issuer'])
+                || $verification['issuer'] === ''
+                || !is_string($verification['proof'])
+                || $verification['proof'] === ''
+            ) {
+                throw new InvalidArgumentException('Verified evidence requires issuer, proof, and verified state.');
+            }
         }
         $parentIds = [];
         foreach ($data['parents'] as $parent) {
             if (!is_array($parent) || !isset($parent['id'], $parent['digest'])) {
                 throw new InvalidArgumentException('Each evidence parent requires an id and digest.');
+            }
+            if (!is_string($parent['id']) || $parent['id'] === '') {
+                throw new InvalidArgumentException('Evidence parent id must be a non-empty string.');
             }
             if ($parent['id'] === $data['id']) {
                 throw new InvalidArgumentException('Evidence cannot parent itself.');

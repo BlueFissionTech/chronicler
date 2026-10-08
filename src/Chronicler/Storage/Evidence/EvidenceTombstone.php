@@ -9,6 +9,8 @@ use InvalidArgumentException;
 
 final class EvidenceTombstone
 {
+    public const VERSION = 1;
+
     private function __construct(private readonly array $data)
     {
     }
@@ -25,7 +27,7 @@ final class EvidenceTombstone
         ?array $replacement = null
     ): self {
         $data = [
-            'version' => 1,
+            'version' => self::VERSION,
             'canonicalization' => CanonicalJson::ID,
             'id' => $id,
             'target_id' => $target->id(),
@@ -62,6 +64,51 @@ final class EvidenceTombstone
     public function targetId(): string
     {
         return $this->data['target_id'];
+    }
+
+    public function version(): int
+    {
+        return $this->data['version'];
+    }
+
+    public function canonicalization(): string
+    {
+        return $this->data['canonicalization'];
+    }
+
+    public function digest(): string
+    {
+        return $this->data['digest'];
+    }
+
+    public function scope(): string
+    {
+        return $this->data['scope'];
+    }
+
+    public function reason(): string
+    {
+        return $this->data['reason'];
+    }
+
+    public function issuer(): string
+    {
+        return $this->data['issuer'];
+    }
+
+    public function effectiveAt(): string
+    {
+        return $this->data['effective_at'];
+    }
+
+    public function supersedes(): ?string
+    {
+        return $this->data['supersedes'];
+    }
+
+    public function replacement(): ?array
+    {
+        return $this->data['replacement'];
     }
 
     public function targetDigest(): string
@@ -109,7 +156,7 @@ final class EvidenceTombstone
                 throw new InvalidArgumentException("Tombstone {$field} is required.");
             }
         }
-        if ($data['version'] !== 1 || $data['canonicalization'] !== CanonicalJson::ID) {
+        if ($data['version'] !== self::VERSION || $data['canonicalization'] !== CanonicalJson::ID) {
             throw new InvalidArgumentException('Unsupported tombstone version or canonicalization.');
         }
         if (!is_string($data['target_digest']) || !preg_match('/^sha256:[a-f0-9]{64}$/', $data['target_digest'])) {
@@ -125,11 +172,14 @@ final class EvidenceTombstone
             if (!is_array($data['replacement']) || !isset($data['replacement']['id'], $data['replacement']['digest'])) {
                 throw new InvalidArgumentException('Tombstone replacement requires an id and digest.');
             }
+            if (!is_string($data['replacement']['id']) || $data['replacement']['id'] === '') {
+                throw new InvalidArgumentException('Replacement id must be a non-empty string.');
+            }
             if (!is_string($data['replacement']['digest']) || !preg_match('/^sha256:[a-f0-9]{64}$/', $data['replacement']['digest'])) {
                 throw new InvalidArgumentException('Replacement digest must be a SHA-256 digest.');
             }
         }
-        if (DateTimeImmutable::createFromFormat(DATE_RFC3339, $data['effective_at']) === false) {
+        if (!is_string($data['effective_at']) || DateTimeImmutable::createFromFormat(DATE_RFC3339, $data['effective_at']) === false) {
             throw new InvalidArgumentException('Tombstone effective_at must be RFC3339.');
         }
         if (!is_string($data['digest']) || !preg_match('/^sha256:[a-f0-9]{64}$/', $data['digest'])) {

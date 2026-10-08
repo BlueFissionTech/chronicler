@@ -14,4 +14,7 @@ tests to the suite.
 The evidence lifecycle tests are service-free. When the local PHP runtime has
 SQLite3, the same suite also creates a temporary database to verify the optional
 DevElation-backed adapter across close/reopen; no environment variables or
-running service are required.
+running service are required. These fixtures include changed-content replay,
+tombstone id reuse, invalid supersedes and replacement references, lifecycle
+event tampering and unknown references, plus derivation attempts after each
+inactive state.
