@@ -56,6 +56,13 @@ actual network drivers should remain opt-in adapters.
   dispatching, and connection inheritance where appropriate.
 - Storage packets expose traceability diagnostics when source, provenance, or
   authority metadata is incomplete.
+- Immutable evidence inputs accept native JSON values only: null, booleans,
+  integers, finite floats, strings, and nested arrays. Mutable objects, primitive
+  wrappers, resources, recursive arrays, and excessive nesting are rejected.
+  Constructors detach caller-owned PHP references before retaining records,
+  events, or tombstones; exported arrays cannot mutate retained snapshots.
+  Existing key/list order, raw scalar types, canonical bytes, and digests stay
+  unchanged for valid native JSON inputs.
 - Evidence records use a versioned canonical JSON representation and SHA-256
   digest, preserve source and provenance, and always expose `authority=none`.
 - Structured and derived records retain exact parent id/digest lineage; an

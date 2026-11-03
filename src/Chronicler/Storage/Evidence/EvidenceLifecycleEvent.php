@@ -44,6 +44,7 @@ final class EvidenceLifecycleEvent
 
     public static function fromArray(array $data): self
     {
+        $data = CanonicalJson::snapshot($data);
         self::validate($data);
         if (!hash_equals(CanonicalJson::digest($data), $data['digest'])) {
             throw new InvalidArgumentException('Lifecycle event digest does not match the canonical event.');

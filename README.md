@@ -26,6 +26,13 @@ scope and extension model.
 
 ## Evidence lifecycle
 
+Evidence inputs must contain native JSON values: null, booleans, integers,
+finite floats, strings, and nested arrays. Mutable objects (including primitive
+wrappers), resources, recursive arrays, and excessive nesting are rejected.
+Constructors detach caller-owned PHP references, and exported arrays cannot
+mutate retained records, lifecycle events, or tombstones. Valid native JSON
+inputs keep their canonical bytes and digest identities.
+
 `EvidenceRecord` captures raw, structured, or derived evidence without granting
 write authority. Structured and derived records must reference the exact id and
 digest of retained parent records. `EvidenceLedger` keeps original records

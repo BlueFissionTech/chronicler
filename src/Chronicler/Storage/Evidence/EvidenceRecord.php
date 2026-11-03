@@ -55,6 +55,7 @@ final class EvidenceRecord
 
     public static function fromArray(array $data): self
     {
+        $data = CanonicalJson::snapshot($data);
         self::validate($data);
         $record = new self($data);
 

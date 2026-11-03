@@ -45,6 +45,10 @@ planning, or model-provider semantics.
   owns lifecycle precedence and active-read filtering. `SqliteEvidenceStore`
   is an optional durable adapter over DevElation's SQLite connection; evidence
   contracts themselves do not require a database.
+  `CanonicalJson::snapshot` detaches PHP reference containers before immutable
+  records/events/tombstones retain data. This native serialization boundary
+  accepts JSON values only, rejects objects without invoking serializers, and
+  preserves valid scalar types, input key order, and canonical digest bytes.
 - `Structures` for Bloom filters, skip lists, priority queues, weighted
   collections, spatial points, and storage-specific internals. Root namespace
   primitives `Vec`, `Set`, `Dict`, `Deq`, `Pri`, and `Pile` provide the short
