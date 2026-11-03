@@ -40,6 +40,15 @@ planning, or model-provider semantics.
   objects. These classes describe storage identity and retrieval intent without
   opening object-store, filesystem, or HTTP clients.
 - `Reference` for generic graph, document, artifact, and event-offset links.
+- `Evidence` for immutable evidence records, exact derivation lineage,
+  append-only lifecycle events, and digest-bound tombstones. `EvidenceLedger`
+  owns lifecycle precedence and active-read filtering. `SqliteEvidenceStore`
+  is an optional durable adapter over DevElation's SQLite connection; evidence
+  contracts themselves do not require a database.
+  `CanonicalJson::snapshot` detaches PHP reference containers before immutable
+  records/events/tombstones retain data. This native serialization boundary
+  accepts JSON values only, rejects objects without invoking serializers, and
+  preserves valid scalar types, input key order, and canonical digest bytes.
 - `Structures` for Bloom filters, skip lists, priority queues, weighted
   collections, spatial points, and storage-specific internals. Root namespace
   primitives `Vec`, `Set`, `Dict`, `Deq`, `Pri`, and `Pile` provide the short
@@ -63,6 +72,12 @@ service sockets.
   requests to external services.
 - Use `StoragePacket` when data leaves a storage adapter boundary and needs
   provenance, authority, or diagnostic context.
+- Use `EvidenceRecord` when the payload must retain a canonical identity and an
+  auditable lifecycle. Never infer withdrawal from freshness or source status;
+  apply an explicit tombstone to its exact target projection. Treat canonical
+  digests as content identity rather than authenticity or host authority, and
+  fail closed when persisted lifecycle events or their record references do not
+  revalidate on reopen.
 - Use artifact and resource references for stable storage links before binding
   to a concrete filesystem, object store, document service, or graph driver.
 - Keep service-backed tests opt-in and document required environment variables
